@@ -1,6 +1,6 @@
 {
   "name": "@callsitehq/cli",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Command-line tools for building Callsite generated artifacts.",
   "type": "module",
   "bin": {
