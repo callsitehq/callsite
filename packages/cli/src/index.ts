@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { emitMcpJson } from "@callsitehq/emit";
+import { emitMcpJson, emitOpenApi } from "@callsitehq/emit";
 
 import type { IR } from "@callsitehq/core";
 
@@ -18,6 +18,7 @@ export async function build(options: BuildOptions): Promise<void> {
   const outDir = resolve(options.outDir);
 
   await writeArtifact(resolve(outDir, "mcp.json"), emitMcpJson(ir));
+  await writeArtifact(resolve(outDir, "openapi.json"), emitOpenApi(ir));
 }
 
 export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<number> {

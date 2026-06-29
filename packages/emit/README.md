@@ -3,13 +3,16 @@
 Pure renderers for Callsite artifacts.
 
 Use this package to turn a Callsite IR into static agent-facing files.
-The first implemented renderer emits MCP tool configuration.
+The implemented renderers emit MCP tool configuration and OpenAPI 3.2.
 
 ```ts
-import { emitMcpJson } from "@callsitehq/emit";
+import { emitMcpJson, emitOpenApi } from "@callsitehq/emit";
 ```
+
+OpenAPI output is capability-shaped RPC over HTTP: each capability is rendered
+as `POST /capabilities/{id}` with JSON input and output schemas.
 
 ## Status
 
-Early `0.x` package. MCP output is implemented first; other surfaces are still
-being rebuilt against the current IR.
+Early `0.x` package. MCP and OpenAPI output are implemented first; other
+surfaces are still being rebuilt against the current IR.

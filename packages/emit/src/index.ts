@@ -12,6 +12,7 @@ export interface EmitOpenApiOptions extends EmitMcpJsonOptions {
 export type EmitOptions = EmitOpenApiOptions;
 
 const CANONICAL_MCP_TOOL_FIELDS = new Set(["name", "description", "inputSchema", "outputSchema"]);
+const CANONICAL_OPENAPI_OPERATION_FIELDS = new Set(["operationId", "requestBody", "responses"]);
 
 export function emitMcpJson(ir: IR, options: EmitMcpJsonOptions = {}): string {
   return stringify({
@@ -22,9 +23,20 @@ export function emitMcpJson(ir: IR, options: EmitMcpJsonOptions = {}): string {
 }
 
 export function emitOpenApi(ir: IR, options: EmitOpenApiOptions = {}): string {
-  void ir;
-  void options;
-  throw new Error("emitOpenApi is not implemented for the current IR yet.");
+  return stringify({
+    openapi: "3.2.0",
+    info: {
+      title: options.name ?? "Callsite API",
+      version: options.version ?? "0.0.0"
+    },
+    ...(options.baseUrl === undefined ? {} : { servers: [{ url: options.baseUrl }] }),
+    paths: Object.fromEntries(
+      ir.capabilities.map((capability) => [
+        `/capabilities/${capability.id}`,
+        { post: capabilityToOpenApiOperation(capability) }
+      ])
+    )
+  });
 }
 
 export function emitChatGptAppConfig(ir: IR, options: EmitMcpJsonOptions = {}): string {
@@ -37,6 +49,44 @@ export function emitClaudeConnectorConfig(ir: IR, options: EmitMcpJsonOptions = 
   void ir;
   void options;
   throw new Error("emitClaudeConnectorConfig is not implemented for the current IR yet.");
+}
+
+function capabilityToOpenApiOperation(capability: CapabilityIR): JsonObject {
+  const override = capability.overrides.openapi ?? {};
+  const passthrough = capability.passthrough.openapi ?? {};
+  const operation: JsonObject = {
+    operationId: capability.id.replaceAll(".", "_"),
+    summary: capability.id,
+    description: capability.intent,
+    requestBody: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: capability.input
+        }
+      }
+    },
+    responses: {
+      "200": {
+        description: "Capability result",
+        content: {
+          "application/json": {
+            schema: capability.output
+          }
+        }
+      },
+      "400": {
+        description: "Invalid request"
+      },
+      "500": {
+        description: "Capability error"
+      }
+    },
+    "x-callsite-destructive": capability.destructive,
+    ...omitCanonicalOpenApiOperationFields(override)
+  };
+
+  return { ...operation, ...passthrough };
 }
 
 function capabilityToMcpTool(capability: CapabilityIR): JsonObject {
@@ -83,6 +133,12 @@ function omitCanonicalMcpFields(value: JsonObject): JsonObject {
     Object.entries(value).filter(
       ([key]) => key !== "annotations" && !CANONICAL_MCP_TOOL_FIELDS.has(key)
     )
+  );
+}
+
+function omitCanonicalOpenApiOperationFields(value: JsonObject): JsonObject {
+  return Object.fromEntries(
+    Object.entries(value).filter(([key]) => !CANONICAL_OPENAPI_OPERATION_FIELDS.has(key))
   );
 }
 

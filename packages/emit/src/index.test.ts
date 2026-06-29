@@ -55,6 +55,18 @@ const ir: IR = {
             destructiveHint: false,
             readOnlyHint: false
           }
+        },
+        openapi: {
+          tags: ["billing"],
+          operationId: "ignored_override_operation_id",
+          requestBody: {
+            description: "Ignored override request body."
+          },
+          responses: {
+            "204": {
+              description: "Ignored override response."
+            }
+          }
         }
       },
       passthrough: {}
@@ -77,6 +89,15 @@ const ir: IR = {
             destructiveHint: false,
             idempotentHint: true
           }
+        },
+        openapi: {
+          operationId: "archiveOrderRaw",
+          responses: {
+            "202": {
+              description: "Archive accepted."
+            }
+          },
+          "x-raw-openapi": true
         }
       }
     }
@@ -190,9 +211,137 @@ describe("emitMcpJson", () => {
   });
 });
 
+describe("emitOpenApi", () => {
+  it("emits stable OpenAPI 3.2 JSON with capability-shaped RPC operations", () => {
+    const json = emitOpenApi(ir);
+    const parsed = JSON.parse(json);
+    const operation = parsed.paths["/capabilities/find_orders"].post;
+
+    expect(json.endsWith("\n")).toBe(true);
+    expect(parsed).toMatchObject({
+      openapi: "3.2.0",
+      info: {
+        title: "Callsite API",
+        version: "0.0.0"
+      }
+    });
+    expect(operation).toMatchObject({
+      operationId: "find_orders",
+      summary: "find_orders",
+      description: "Search orders before taking an action.",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: inputSchema
+          }
+        }
+      },
+      responses: {
+        "200": {
+          description: "Capability result",
+          content: {
+            "application/json": {
+              schema: outputSchema
+            }
+          }
+        },
+        "400": {
+          description: "Invalid request"
+        },
+        "500": {
+          description: "Capability error"
+        }
+      },
+      "x-callsite-destructive": false
+    });
+  });
+
+  it("uses configured OpenAPI info and server options", () => {
+    expect(
+      JSON.parse(
+        emitOpenApi(ir, {
+          baseUrl: "https://api.example.com",
+          name: "Billing API",
+          version: "1.2.3"
+        })
+      )
+    ).toMatchObject({
+      info: {
+        title: "Billing API",
+        version: "1.2.3"
+      },
+      servers: [{ url: "https://api.example.com" }]
+    });
+  });
+
+  it("normalizes dotted capability ids for operation ids", () => {
+    const dottedIR: IR = {
+      version: 1,
+      capabilities: [
+        {
+          id: "orders.find",
+          intent: "Find orders.",
+          input: inputSchema,
+          output: outputSchema,
+          destructive: false,
+          examples: [],
+          overrides: {},
+          passthrough: {}
+        }
+      ]
+    };
+
+    expect(
+      JSON.parse(emitOpenApi(dottedIR)).paths["/capabilities/orders.find"].post.operationId
+    ).toBe("orders_find");
+  });
+
+  it("applies OpenAPI overrides without replacing canonical wiring", () => {
+    const operation = JSON.parse(emitOpenApi(ir)).paths["/capabilities/refund_order"].post;
+
+    expect(operation).toMatchObject({
+      operationId: "refund_order",
+      tags: ["billing"],
+      requestBody: {
+        content: {
+          "application/json": {
+            schema: inputSchema
+          }
+        }
+      },
+      responses: {
+        "200": {
+          content: {
+            "application/json": {
+              schema: outputSchema
+            }
+          }
+        }
+      },
+      "x-callsite-destructive": true
+    });
+    expect(operation.responses["204"]).toBeUndefined();
+  });
+
+  it("applies OpenAPI passthrough last as the raw escape hatch", () => {
+    const operation = JSON.parse(emitOpenApi(ir)).paths["/capabilities/archive_order"].post;
+
+    expect(operation).toMatchObject({
+      operationId: "archiveOrderRaw",
+      responses: {
+        "202": {
+          description: "Archive accepted."
+        }
+      },
+      "x-raw-openapi": true
+    });
+    expect(operation.responses["200"]).toBeUndefined();
+  });
+});
+
 describe("deferred emitters", () => {
   it("keeps non-MCP exports but fails explicitly", () => {
-    expect(() => emitOpenApi(ir)).toThrow("not implemented");
     expect(() => emitChatGptAppConfig(ir)).toThrow("not implemented");
     expect(() => emitClaudeConnectorConfig(ir)).toThrow("not implemented");
   });

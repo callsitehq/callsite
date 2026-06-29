@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { build } from "./index.js";
 
 describe("build", () => {
-  it("writes only mcp.json for the current IR build", async () => {
+  it("writes mcp.json and openapi.json for the current IR build", async () => {
     const directory = await mkdtemp(join(tmpdir(), "callsite-cli-"));
     const configPath = join(directory, "callsite.config.mjs");
     const outDir = join(directory, "out");
@@ -31,8 +31,12 @@ describe("build", () => {
 
     await build({ configPath, outDir });
 
-    await expect(readdir(outDir)).resolves.toEqual(["mcp.json"]);
+    await expect(readdir(outDir)).resolves.toEqual(["mcp.json", "openapi.json"]);
     await expect(readFile(join(outDir, "mcp.json"), "utf8")).resolves.toContain("demo.greet");
+    await expect(readFile(join(outDir, "openapi.json"), "utf8")).resolves.toContain("3.2.0");
+    await expect(readFile(join(outDir, "openapi.json"), "utf8")).resolves.toContain(
+      "/capabilities/demo.greet"
+    );
   });
 
   it("rejects config files that do not export root IR", async () => {
