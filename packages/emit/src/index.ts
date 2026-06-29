@@ -1,4 +1,12 @@
-import type { CapabilityIR, IR, JsonObject, JsonValue } from "@callsitehq/core";
+import type {
+  CapabilityErrorCode,
+  CapabilityErrorSpec,
+  CapabilityIR,
+  DeclaredCapabilityErrorCode,
+  IR,
+  JsonObject,
+  JsonValue
+} from "@callsitehq/core";
 
 export interface EmitMcpJsonOptions {
   readonly name?: string;
@@ -13,6 +21,26 @@ export type EmitOptions = EmitOpenApiOptions;
 
 const CANONICAL_MCP_TOOL_FIELDS = new Set(["name", "description", "inputSchema", "outputSchema"]);
 const CANONICAL_OPENAPI_OPERATION_FIELDS = new Set(["operationId", "requestBody", "responses"]);
+const CALLSITE_ERRORS_META_KEY = "callsitehq.com/errors";
+const STATUS_BY_ERROR_CODE: Record<DeclaredCapabilityErrorCode, string> = {
+  unauthorized: "401",
+  forbidden: "403",
+  not_found: "404",
+  conflict: "409",
+  rate_limited: "429",
+  unavailable: "503"
+};
+
+interface OpenApiErrorResponseDefinition {
+  readonly status: string;
+  readonly description: string;
+  readonly codes: readonly CapabilityErrorCode[];
+}
+
+interface DeclaredErrorStatusGroup {
+  readonly status: string;
+  readonly errors: readonly CapabilityErrorSpec[];
+}
 
 export function emitMcpJson(ir: IR, options: EmitMcpJsonOptions = {}): string {
   return stringify({
@@ -75,12 +103,7 @@ function capabilityToOpenApiOperation(capability: CapabilityIR): JsonObject {
           }
         }
       },
-      "400": {
-        description: "Invalid request"
-      },
-      "500": {
-        description: "Capability error"
-      }
+      ...openApiResponsesForCapability(capability)
     },
     "x-callsite-destructive": capability.destructive,
     ...omitCanonicalOpenApiOperationFields(override)
@@ -99,13 +122,15 @@ function capabilityToMcpTool(capability: CapabilityIR): JsonObject {
   const override = capability.overrides.mcp ?? {};
   const passthrough = capability.passthrough.mcp ?? {};
   const overrideAnnotations = jsonObjectValue(override.annotations);
+  const meta = mcpMetaForCapability(capability, override);
 
   const tool: JsonObject = {
     name: capability.id,
     description: capability.intent,
     inputSchema: capability.input,
     outputSchema: capability.output,
-    ...omitCanonicalMcpFields(override),
+    ...omitReservedMcpFields(override),
+    ...(Object.keys(meta).length === 0 ? {} : { _meta: meta }),
     annotations: {
       ...canonicalAnnotations,
       ...overrideAnnotations,
@@ -128,10 +153,126 @@ function assertObjectSchema(
   }
 }
 
-function omitCanonicalMcpFields(value: JsonObject): JsonObject {
+function openApiResponsesForCapability(capability: CapabilityIR): JsonObject {
+  return Object.fromEntries(
+    openApiErrorResponseDefinitions(capability).map((response) => [
+      response.status,
+      openApiErrorResponse(response)
+    ])
+  );
+}
+
+function openApiErrorResponseDefinitions(
+  capability: CapabilityIR
+): readonly OpenApiErrorResponseDefinition[] {
+  const declaredErrorResponses = groupDeclaredErrorsByStatus(capability.errors).map(
+    declaredErrorGroupToOpenApiResponse
+  );
+
+  return [
+    {
+      status: "400",
+      description: "Invalid request",
+      codes: ["invalid_input"]
+    },
+    ...declaredErrorResponses,
+    {
+      status: "500",
+      description: "Capability error",
+      codes: ["internal"]
+    }
+  ];
+}
+
+function groupDeclaredErrorsByStatus(
+  errors: readonly CapabilityErrorSpec[]
+): readonly DeclaredErrorStatusGroup[] {
+  const errorsByStatus = new Map<string, CapabilityErrorSpec[]>();
+
+  for (const error of errors) {
+    const status = STATUS_BY_ERROR_CODE[error.code];
+    const statusErrors = errorsByStatus.get(status) ?? [];
+
+    errorsByStatus.set(status, [...statusErrors, error]);
+  }
+
+  return Array.from(errorsByStatus, ([status, statusErrors]) => ({
+    status,
+    errors: statusErrors
+  }));
+}
+
+function declaredErrorGroupToOpenApiResponse(
+  group: DeclaredErrorStatusGroup
+): OpenApiErrorResponseDefinition {
+  return {
+    status: group.status,
+    description: group.errors.map((error) => error.intent).join("\n"),
+    codes: unique(group.errors.map((error) => error.code))
+  };
+}
+
+function mcpMetaForCapability(capability: CapabilityIR, override: JsonObject): JsonObject {
+  const overrideMeta = jsonObjectValue(override._meta);
+
+  return {
+    ...overrideMeta,
+    ...(capability.errors.length === 0
+      ? {}
+      : { [CALLSITE_ERRORS_META_KEY]: errorsToJson(capability.errors) })
+  };
+}
+
+function openApiErrorResponse(response: OpenApiErrorResponseDefinition): JsonObject {
+  return {
+    description: response.description,
+    content: {
+      "application/json": {
+        schema: {
+          type: "object",
+          properties: {
+            error: {
+              type: "object",
+              properties: {
+                code: {
+                  type: "string",
+                  enum: response.codes
+                },
+                message: {
+                  type: "string"
+                },
+                details: {
+                  type: "object",
+                  additionalProperties: true
+                }
+              },
+              required: ["code", "message"],
+              additionalProperties: false
+            }
+          },
+          required: ["error"],
+          additionalProperties: false
+        }
+      }
+    }
+  };
+}
+
+function errorsToJson(errors: readonly CapabilityErrorSpec[]): JsonValue {
+  return errors.map((error) => ({
+    code: error.code,
+    intent: error.intent
+  }));
+}
+
+function unique<T>(values: readonly T[]): readonly T[] {
+  return Array.from(new Set(values));
+}
+
+function omitReservedMcpFields(value: JsonObject): JsonObject {
   return Object.fromEntries(
     Object.entries(value).filter(
-      ([key]) => key !== "annotations" && !CANONICAL_MCP_TOOL_FIELDS.has(key)
+      ([key]) => key !== "annotations" && key !== "_meta" && !CANONICAL_MCP_TOOL_FIELDS.has(key)
     )
   );
 }

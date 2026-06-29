@@ -35,6 +35,7 @@ const ir: IR = {
       input: inputSchema,
       output: outputSchema,
       destructive: false,
+      errors: [],
       examples: [],
       overrides: {},
       passthrough: {}
@@ -45,6 +46,16 @@ const ir: IR = {
       input: inputSchema,
       output: outputSchema,
       destructive: true,
+      errors: [
+        {
+          code: "not_found",
+          intent: "No paid order exists for the provided orderId."
+        },
+        {
+          code: "conflict",
+          intent: "The order has already been fully refunded."
+        }
+      ],
       examples: [],
       overrides: {
         mcp: {
@@ -77,6 +88,7 @@ const ir: IR = {
       input: inputSchema,
       output: outputSchema,
       destructive: true,
+      errors: [],
       examples: [],
       overrides: {},
       passthrough: {
@@ -113,6 +125,7 @@ const nonObjectSchemaIR: IR = {
       input: { type: "string" },
       output: outputSchema,
       destructive: false,
+      errors: [],
       examples: [],
       overrides: {},
       passthrough: {}
@@ -140,6 +153,7 @@ describe("emitMcpJson", () => {
         destructiveHint: false
       }
     });
+    expect(parsed.tools[0]._meta).toBeUndefined();
   });
 
   it("uses configured top-level name and version", () => {
@@ -161,6 +175,18 @@ describe("emitMcpJson", () => {
       annotations: {
         destructiveHint: true,
         readOnlyHint: false
+      },
+      _meta: {
+        "callsitehq.com/errors": [
+          {
+            code: "not_found",
+            intent: "No paid order exists for the provided orderId."
+          },
+          {
+            code: "conflict",
+            intent: "The order has already been fully refunded."
+          }
+        ]
       }
     });
   });
@@ -190,6 +216,7 @@ describe("emitMcpJson", () => {
           input: inputSchema,
           output: outputSchema,
           destructive: true,
+          errors: [],
           examples: [],
           overrides: {},
           passthrough: {
@@ -255,6 +282,14 @@ describe("emitOpenApi", () => {
       },
       "x-callsite-destructive": false
     });
+    expect(
+      operation.responses["400"].content["application/json"].schema.properties.error.properties.code
+        .enum
+    ).toEqual(["invalid_input"]);
+    expect(
+      operation.responses["500"].content["application/json"].schema.properties.error.properties.code
+        .enum
+    ).toEqual(["internal"]);
   });
 
   it("uses configured OpenAPI info and server options", () => {
@@ -285,6 +320,7 @@ describe("emitOpenApi", () => {
           input: inputSchema,
           output: outputSchema,
           destructive: false,
+          errors: [],
           examples: [],
           overrides: {},
           passthrough: {}
@@ -317,10 +353,24 @@ describe("emitOpenApi", () => {
               schema: outputSchema
             }
           }
+        },
+        "404": {
+          description: "No paid order exists for the provided orderId."
+        },
+        "409": {
+          description: "The order has already been fully refunded."
         }
       },
       "x-callsite-destructive": true
     });
+    expect(
+      operation.responses["404"].content["application/json"].schema.properties.error.properties.code
+        .enum
+    ).toEqual(["not_found"]);
+    expect(
+      operation.responses["409"].content["application/json"].schema.properties.error.properties.code
+        .enum
+    ).toEqual(["conflict"]);
     expect(operation.responses["204"]).toBeUndefined();
   });
 
@@ -337,6 +387,45 @@ describe("emitOpenApi", () => {
       "x-raw-openapi": true
     });
     expect(operation.responses["200"]).toBeUndefined();
+  });
+
+  it("combines declared errors that map to the same OpenAPI response status", () => {
+    const unavailableIR: IR = {
+      version: 1,
+      capabilities: [
+        {
+          id: "sync_orders",
+          intent: "Sync orders from the upstream platform.",
+          input: inputSchema,
+          output: outputSchema,
+          destructive: false,
+          errors: [
+            {
+              code: "unavailable",
+              intent: "The upstream order platform is unavailable."
+            },
+            {
+              code: "unavailable",
+              intent: "The warehouse system is unavailable."
+            }
+          ],
+          examples: [],
+          overrides: {},
+          passthrough: {}
+        }
+      ]
+    };
+
+    expect(
+      JSON.parse(emitOpenApi(unavailableIR)).paths["/capabilities/sync_orders"].post.responses[
+        "503"
+      ].description
+    ).toBe("The upstream order platform is unavailable.\nThe warehouse system is unavailable.");
+    expect(
+      JSON.parse(emitOpenApi(unavailableIR)).paths["/capabilities/sync_orders"].post.responses[
+        "503"
+      ].content["application/json"].schema.properties.error.properties.code.enum
+    ).toEqual(["unavailable"]);
   });
 });
 

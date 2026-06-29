@@ -51,6 +51,16 @@ const refundOrder = capability({
   input: refundOrderInput,
   output: refundOrderOutput,
   destructive: true,
+  errors: [
+    {
+      code: "not_found",
+      intent: "No paid order exists for the provided orderId."
+    },
+    {
+      code: "conflict",
+      intent: "The order has already been fully refunded."
+    }
+  ],
   examples: [
     {
       input: { orderId: "ord_1A2B" },
@@ -145,6 +155,16 @@ describe("toIR", () => {
     expect(ir.capabilities[0]).toMatchObject({
       id: "refund_order",
       destructive: true,
+      errors: [
+        {
+          code: "not_found",
+          intent: "No paid order exists for the provided orderId."
+        },
+        {
+          code: "conflict",
+          intent: "The order has already been fully refunded."
+        }
+      ],
       input: toJsonSchema(refundOrderInput, { direction: "input" }),
       output: toJsonSchema(refundOrderOutput, { direction: "output" }),
       examples: [
@@ -164,6 +184,7 @@ describe("toIR", () => {
     expect(ir.capabilities[1]).toMatchObject({
       id: "find_orders",
       destructive: false,
+      errors: [],
       input: toJsonSchema(findOrdersInput, { direction: "input" }),
       output: toJsonSchema(findOrdersOutput, { direction: "output" }),
       examples: [],

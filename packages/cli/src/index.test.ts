@@ -22,6 +22,10 @@ describe("build", () => {
           input: { type: "object" },
           output: { type: "object" },
           destructive: false,
+          errors: [{
+            code: "not_found",
+            intent: "No greeting target exists."
+          }],
           examples: [],
           overrides: {},
           passthrough: {}
@@ -36,6 +40,9 @@ describe("build", () => {
     await expect(readFile(join(outDir, "openapi.json"), "utf8")).resolves.toContain("3.2.0");
     await expect(readFile(join(outDir, "openapi.json"), "utf8")).resolves.toContain(
       "/capabilities/demo.greet"
+    );
+    await expect(readFile(join(outDir, "openapi.json"), "utf8")).resolves.toContain(
+      "No greeting target exists."
     );
   });
 

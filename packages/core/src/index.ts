@@ -69,6 +69,16 @@ export type CapabilityErrorCode =
   | "unavailable"
   | "internal";
 
+export type DeclaredCapabilityErrorCode = Exclude<
+  CapabilityErrorCode,
+  "invalid_input" | "internal"
+>;
+
+export interface CapabilityErrorSpec {
+  readonly code: DeclaredCapabilityErrorCode;
+  readonly intent: string;
+}
+
 export class CapabilityError extends Error {
   public constructor(
     public readonly code: CapabilityErrorCode,
@@ -117,6 +127,7 @@ export interface Capability<
   readonly input: InputSchema;
   readonly output: OutputSchema;
   readonly destructive?: boolean;
+  readonly errors?: readonly CapabilityErrorSpec[];
   readonly examples?: readonly CapabilityExample<InputSchema, OutputSchema>[];
   readonly run: CapabilityRun<InputSchema, OutputSchema>;
   readonly overrides?: SurfaceExtensions;
@@ -129,6 +140,7 @@ export interface AnyCapability {
   readonly input: AnyStandardSchema;
   readonly output: AnyStandardSchema;
   readonly destructive?: boolean;
+  readonly errors?: readonly CapabilityErrorSpec[];
   readonly examples?: readonly CapabilityIRExample[];
   readonly run: (input: any, context: CapabilityContext) => any;
   readonly overrides?: SurfaceExtensions;
@@ -150,6 +162,7 @@ export interface CapabilityIR {
   readonly input: JsonSchema;
   readonly output: JsonSchema;
   readonly destructive: boolean;
+  readonly errors: readonly CapabilityErrorSpec[];
   readonly examples: readonly CapabilityIRExample[];
   readonly overrides: SurfaceExtensions;
   readonly passthrough: SurfaceExtensions;
@@ -175,6 +188,7 @@ export function toIR(capabilities: readonly AnyCapability[], toJsonSchema: ToJso
       input: toJsonSchema(capabilityDefinition.input, { direction: "input" }),
       output: toJsonSchema(capabilityDefinition.output, { direction: "output" }),
       destructive: capabilityDefinition.destructive ?? false,
+      errors: capabilityDefinition.errors ?? [],
       examples: (capabilityDefinition.examples ?? []).map((example) => ({
         input: example.input,
         output: example.output,
