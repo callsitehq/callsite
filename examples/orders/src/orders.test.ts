@@ -9,7 +9,7 @@ import { toIR } from "@callsitehq/core";
 import { emitMcpJson, emitOpenApi } from "@callsitehq/emit";
 
 import config from "../callsite.config.js";
-import { fetchHandler } from "./server.js";
+import { fetchHandler } from "../generated/handler.js";
 
 const ir = toIR(config.capabilities, config.toJsonSchema);
 const mcpOptions = config.emit?.mcp;
@@ -57,6 +57,17 @@ describe("orders example", () => {
     await expect(
       readFile(new URL("../generated/openapi.json", import.meta.url), "utf8")
     ).resolves.toBe(emitOpenApi(ir, openApiOptions));
+    await expect(readFile(new URL("../generated/handler.ts", import.meta.url), "utf8")).resolves
+      .toBe(`import { createFetchHandler } from "@callsitehq/runtime";
+
+import config from "../callsite.config.js";
+
+export const fetchHandler = createFetchHandler(config.capabilities);
+
+export default {
+  fetch: fetchHandler
+};
+`);
   });
 
   it("serves the OpenAPI-shaped success response through runtime", async () => {

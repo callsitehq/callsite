@@ -14,7 +14,7 @@ source of truth.
 ## Examples
 
 - `examples/orders`: full Zod-backed orders flow from capabilities to generated
-  MCP/OpenAPI artifacts and runtime execution.
+  MCP/OpenAPI artifacts, a runtime handler, and runtime execution.
 
 ## Development
 

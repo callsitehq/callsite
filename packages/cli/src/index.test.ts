@@ -35,7 +35,10 @@ describe("build", () => {
 
     await build({ configPath, outDir });
 
-    await expect(readdir(outDir)).resolves.toEqual(["mcp.json", "openapi.json"]);
+    await expect(readdir(outDir).then((files) => files.sort())).resolves.toEqual([
+      "mcp.json",
+      "openapi.json"
+    ]);
     await expect(readFile(join(outDir, "mcp.json"), "utf8")).resolves.toContain("demo.greet");
     await expect(readFile(join(outDir, "openapi.json"), "utf8")).resolves.toContain("3.2.0");
     await expect(readFile(join(outDir, "openapi.json"), "utf8")).resolves.toContain(
@@ -97,6 +100,11 @@ describe("build", () => {
 
     await build({ configPath, outDir });
 
+    await expect(readdir(outDir).then((files) => files.sort())).resolves.toEqual([
+      "handler.ts",
+      "mcp.json",
+      "openapi.json"
+    ]);
     await expect(readFile(join(outDir, "mcp.json"), "utf8")).resolves.toContain("demo-tools");
     await expect(readFile(join(outDir, "mcp.json"), "utf8")).resolves.toContain('"title": "input"');
     await expect(readFile(join(outDir, "openapi.json"), "utf8")).resolves.toContain("Demo API");
@@ -105,6 +113,18 @@ describe("build", () => {
     );
     await expect(readFile(join(outDir, "openapi.json"), "utf8")).resolves.toContain(
       '"title": "output"'
+    );
+    await expect(readFile(join(outDir, "handler.ts"), "utf8")).resolves.toBe(
+      `import { createFetchHandler } from "@callsitehq/runtime";
+
+import config from "../callsite.config.js";
+
+export const fetchHandler = createFetchHandler(config.capabilities);
+
+export default {
+  fetch: fetchHandler
+};
+`
     );
   });
 

@@ -4,5 +4,5 @@
     "noEmit": true,
     "tsBuildInfoFile": "./tsconfig.tsbuildinfo"
   },
-  "include": ["callsite.config.ts", "src/**/*.ts"]
+  "include": ["callsite.config.ts", "src/**/*.ts", "generated/**/*.ts"]
 }

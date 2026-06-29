@@ -1,5 +1,6 @@
+import { realpathSync } from "node:fs";
 import { access, mkdir, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, extname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createJiti } from "jiti";
@@ -37,6 +38,9 @@ export async function build(options: BuildOptions): Promise<void> {
 
   await writeArtifact(resolve(outDir, "mcp.json"), emitMcpJson(ir, emit?.mcp));
   await writeArtifact(resolve(outDir, "openapi.json"), emitOpenApi(ir, emit?.openapi));
+  if (isCallsiteConfig(config)) {
+    await writeArtifact(resolve(outDir, "handler.ts"), runtimeHandler(configPath, outDir));
+  }
 }
 
 export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<number> {
@@ -140,6 +144,41 @@ function readFlag(args: readonly string[], name: string): string | undefined {
   return args[index + 1];
 }
 
+function runtimeHandler(configPath: string, outDir: string): string {
+  const configImport = importSpecifier(resolve(outDir, "handler.ts"), configPath);
+
+  return `import { createFetchHandler } from "@callsitehq/runtime";
+
+import config from "${configImport}";
+
+export const fetchHandler = createFetchHandler(config.capabilities);
+
+export default {
+  fetch: fetchHandler
+};
+`;
+}
+
+function importSpecifier(fromPath: string, toPath: string): string {
+  const specifier = relative(dirname(fromPath), toPath).replaceAll("\\", "/");
+  const relativeSpecifier = specifier.startsWith(".") ? specifier : `./${specifier}`;
+
+  return replaceTypeScriptExtension(relativeSpecifier);
+}
+
+function replaceTypeScriptExtension(path: string): string {
+  switch (extname(path)) {
+    case ".ts":
+      return `${path.slice(0, -3)}.js`;
+    case ".mts":
+      return `${path.slice(0, -4)}.mjs`;
+    case ".cts":
+      return `${path.slice(0, -4)}.cjs`;
+    default:
+      return path;
+  }
+}
+
 async function writeArtifact(path: string, content: string): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, content);
@@ -153,7 +192,9 @@ Usage:
 `);
 }
 
-const isDirectRun = process.argv[1] === fileURLToPath(import.meta.url);
+const isDirectRun =
+  process.argv[1] !== undefined &&
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
 
 if (isDirectRun) {
   main().then(
