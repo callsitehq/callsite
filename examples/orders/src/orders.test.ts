@@ -10,6 +10,7 @@ import { emitMcpJson, emitOpenApi } from "@callsitehq/emit";
 
 import config from "../callsite.config.js";
 import { createOrdersFetchHandler } from "./server.js";
+import type { OrderEvent } from "./services.js";
 
 const ir = toIR(config.capabilities, config.toJsonSchema);
 const mcpOptions = config.emit?.mcp;
@@ -26,13 +27,21 @@ describe("orders example", () => {
       destructive: true,
       errors: [
         {
+          code: "unauthorized",
+          intent: "A signed-in support subject is required to refund orders."
+        },
+        {
+          code: "forbidden",
+          intent: "Refunding orders is disabled for the current support subject."
+        },
+        {
           code: "not_found",
           intent: "No paid order exists for the provided orderId."
         },
         {
           code: "conflict",
           intent:
-            "The order is already refunded or the requested refund exceeds the refundable amount."
+            "The order is not in a refundable state, is already refunded, or the requested refund exceeds the refundable amount."
         }
       ]
     });
@@ -82,7 +91,10 @@ describe("orders example", () => {
   });
 
   it("serves the standard error envelope through runtime", async () => {
-    const response = await fetchHandler(
+    const refundHandler = createOrdersFetchHandler({
+      context: { subject: "support_123" }
+    });
+    const response = await refundHandler(
       new Request("https://api.example.com/capabilities/orders.refund", {
         body: JSON.stringify({ orderId: "ord_missing" }),
         method: "POST"
@@ -102,7 +114,10 @@ describe("orders example", () => {
   });
 
   it("serves declared conflict errors through runtime", async () => {
-    const response = await fetchHandler(
+    const refundHandler = createOrdersFetchHandler({
+      context: { subject: "support_123" }
+    });
+    const response = await refundHandler(
       new Request("https://api.example.com/capabilities/orders.refund", {
         body: JSON.stringify({ orderId: "ord_2001" }),
         method: "POST"
@@ -121,11 +136,63 @@ describe("orders example", () => {
     });
   });
 
-  it("lets the host app compose runtime context around capabilities", async () => {
+  it("rejects non-paid orders that are not refundable", async () => {
+    const refundHandler = createOrdersFetchHandler({
+      context: { subject: "support_123" }
+    });
+    const response = await refundHandler(
+      new Request("https://api.example.com/capabilities/orders.refund", {
+        body: JSON.stringify({ orderId: "ord_1002" }),
+        method: "POST"
+      })
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        code: "conflict",
+        message: "Order is not in a refundable state.",
+        details: {
+          orderId: "ord_1002",
+          status: "shipped"
+        }
+      }
+    });
+  });
+
+  it("requires per-request subject for destructive capabilities", async () => {
+    const response = await fetchHandler(
+      new Request("https://api.example.com/capabilities/orders.refund", {
+        body: JSON.stringify({ orderId: "ord_1001" }),
+        method: "POST"
+      })
+    );
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        code: "unauthorized",
+        message: "A signed-in subject is required."
+      }
+    });
+  });
+
+  it("lets the host app compose services and per-request context around capabilities", async () => {
     const events: [string, Record<string, unknown> | undefined][] = [];
+    const publishedEvents: OrderEvent[] = [];
     const hostOwnedHandler = createOrdersFetchHandler({
-      context() {
+      app: {
+        events: {
+          publish(event) {
+            publishedEvents.push(event);
+          }
+        }
+      },
+      context(request) {
+        const subject = request.headers.get("x-subject");
+
         return {
+          ...(subject === null ? {} : { subject }),
           log(event, data) {
             events.push([event, data]);
           }
@@ -136,12 +203,52 @@ describe("orders example", () => {
     const response = await hostOwnedHandler(
       new Request("https://api.example.com/capabilities/orders.refund", {
         body: JSON.stringify({ orderId: "ord_1001" }),
+        headers: { "x-subject": "support_123" },
         method: "POST"
       })
     );
 
     expect(response.status).toBe(200);
     expect(events).toEqual([["orders.refund.start", { orderId: "ord_1001" }]]);
+    expect(publishedEvents).toEqual([
+      {
+        type: "order.refunded",
+        actorId: "support_123",
+        orderId: "ord_1001",
+        refundedCents: 12_500
+      }
+    ]);
+  });
+
+  it("lets host-owned services affect capability behavior", async () => {
+    const hostOwnedHandler = createOrdersFetchHandler({
+      app: {
+        featureFlags: {
+          enabled() {
+            return false;
+          }
+        }
+      },
+      context: { subject: "support_123" }
+    });
+
+    const response = await hostOwnedHandler(
+      new Request("https://api.example.com/capabilities/orders.refund", {
+        body: JSON.stringify({ orderId: "ord_1001" }),
+        method: "POST"
+      })
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        code: "forbidden",
+        message: "Refunding orders is disabled for this subject.",
+        details: {
+          actorId: "support_123"
+        }
+      }
+    });
   });
 });
 

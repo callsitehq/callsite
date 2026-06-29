@@ -141,12 +141,20 @@
       "_meta": {
         "callsitehq.com/errors": [
           {
+            "code": "unauthorized",
+            "intent": "A signed-in support subject is required to refund orders."
+          },
+          {
+            "code": "forbidden",
+            "intent": "Refunding orders is disabled for the current support subject."
+          },
+          {
             "code": "not_found",
             "intent": "No paid order exists for the provided orderId."
           },
           {
             "code": "conflict",
-            "intent": "The order is already refunded or the requested refund exceeds the refundable amount."
+            "intent": "The order is not in a refundable state, is already refunded, or the requested refund exceeds the refundable amount."
           }
         ]
       },

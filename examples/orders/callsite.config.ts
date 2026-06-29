@@ -1,6 +1,6 @@
 import { defineConfig } from "@callsitehq/zod";
 
-import { capabilities } from "./src/capabilities.js";
+import { capabilities } from "./src/app.js";
 
 export default defineConfig({
   capabilities,

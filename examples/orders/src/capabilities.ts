@@ -2,31 +2,19 @@ import { z } from "zod";
 
 import { capability, CapabilityError } from "@callsitehq/core";
 
-const orderStatus = z.enum(["paid", "shipped", "refunded"]);
+import {
+  OrderAlreadyRefundedError,
+  OrderNotFoundError,
+  OrderNotRefundableError,
+  RefundAmountExceedsBalanceError,
+  RefundsDisabledError,
+  type FindOrdersRequest,
+  type FindOrdersResponse,
+  type RefundOrderRequest,
+  type RefundOrderResponse
+} from "./services.js";
 
-const orders = [
-  {
-    orderId: "ord_1001",
-    email: "ada@example.com",
-    status: "paid",
-    totalCents: 12_500,
-    refundedCents: 0
-  },
-  {
-    orderId: "ord_1002",
-    email: "ada@example.com",
-    status: "shipped",
-    totalCents: 4_200,
-    refundedCents: 0
-  },
-  {
-    orderId: "ord_2001",
-    email: "grace@example.com",
-    status: "refunded",
-    totalCents: 9_900,
-    refundedCents: 9_900
-  }
-] as const;
+const orderStatus = z.enum(["paid", "shipped", "refunded"]);
 
 const orderSummary = z.object({
   orderId: z.string(),
@@ -62,105 +50,142 @@ const refundOrderOutput = z.object({
   refundedCents: z.number().int().positive()
 });
 
-export const findOrders = capability({
-  id: "orders.find",
-  intent:
-    "Search a customer's orders by email and optional status. Use this before acting on a specific order, such as before issuing a refund.",
-  input: findOrdersInput,
-  output: findOrdersOutput,
-  examples: [
-    {
-      input: { email: "ada@example.com", status: "paid" },
-      output: {
-        orders: [
-          {
-            orderId: "ord_1001",
-            status: "paid",
-            totalCents: 12_500,
-            refundedCents: 0
-          }
-        ]
+export interface OrderCapabilityDeps {
+  readonly findOrders: {
+    execute(input: FindOrdersRequest): FindOrdersResponse | Promise<FindOrdersResponse>;
+  };
+  readonly refundOrder: {
+    execute(input: RefundOrderRequest): RefundOrderResponse | Promise<RefundOrderResponse>;
+  };
+}
+
+export function createOrderCapabilities(deps: OrderCapabilityDeps) {
+  const findOrders = capability({
+    id: "orders.find",
+    intent:
+      "Search a customer's orders by email and optional status. Use this before acting on a specific order, such as before issuing a refund.",
+    input: findOrdersInput,
+    output: findOrdersOutput,
+    examples: [
+      {
+        input: { email: "ada@example.com", status: "paid" },
+        output: {
+          orders: [
+            {
+              orderId: "ord_1001",
+              status: "paid",
+              totalCents: 12_500,
+              refundedCents: 0
+            }
+          ]
+        },
+        note: "Find paid orders for a customer before selecting one to refund."
+      }
+    ],
+    run(input) {
+      return deps.findOrders.execute(input);
+    }
+  });
+
+  const refundOrder = capability({
+    id: "orders.refund",
+    intent:
+      "Refund a customer's paid order, either fully or partially. Use when the customer has selected a specific paid order and wants money returned. Do not use to cancel unpaid orders.",
+    input: refundOrderInput,
+    output: refundOrderOutput,
+    destructive: true,
+    errors: [
+      {
+        code: "unauthorized",
+        intent: "A signed-in support subject is required to refund orders."
       },
-      note: "Find paid orders for a customer before selecting one to refund."
-    }
-  ],
-  run(input) {
-    return {
-      orders: orders
-        .filter((order) => order.email === input.email)
-        .filter((order) => input.status === undefined || order.status === input.status)
-        .slice(0, input.limit)
-        .map((order) => ({
-          orderId: order.orderId,
-          status: order.status,
-          totalCents: order.totalCents,
-          refundedCents: order.refundedCents
-        }))
-    };
-  }
-});
-
-export const refundOrder = capability({
-  id: "orders.refund",
-  intent:
-    "Refund a customer's paid order, either fully or partially. Use when the customer has selected a specific paid order and wants money returned. Do not use to cancel unpaid orders.",
-  input: refundOrderInput,
-  output: refundOrderOutput,
-  destructive: true,
-  errors: [
-    {
-      code: "not_found",
-      intent: "No paid order exists for the provided orderId."
-    },
-    {
-      code: "conflict",
-      intent: "The order is already refunded or the requested refund exceeds the refundable amount."
-    }
-  ],
-  examples: [
-    {
-      input: { orderId: "ord_1001", reason: "Customer returned the item." },
-      output: {
-        refundId: "re_ord_1001",
-        status: "refunded",
-        refundedCents: 12_500
+      {
+        code: "forbidden",
+        intent: "Refunding orders is disabled for the current support subject."
       },
-      note: "Full refund with amountCents omitted."
-    }
-  ],
-  run(input, context) {
-    context.log("orders.refund.start", { orderId: input.orderId });
+      {
+        code: "not_found",
+        intent: "No paid order exists for the provided orderId."
+      },
+      {
+        code: "conflict",
+        intent:
+          "The order is not in a refundable state, is already refunded, or the requested refund exceeds the refundable amount."
+      }
+    ],
+    examples: [
+      {
+        input: { orderId: "ord_1001", reason: "Customer returned the item." },
+        output: {
+          refundId: "re_ord_1001",
+          status: "refunded",
+          refundedCents: 12_500
+        },
+        note: "Full refund with amountCents omitted."
+      }
+    ],
+    async run(input, context) {
+      context.log("orders.refund.start", { orderId: input.orderId });
 
-    const order = orders.find((candidate) => candidate.orderId === input.orderId);
-    if (order === undefined) {
-      throw new CapabilityError("not_found", "No paid order exists for that id.", {
-        orderId: input.orderId
-      });
-    }
-    if (order.status === "refunded") {
-      throw new CapabilityError("conflict", "Order has already been refunded.", {
-        orderId: input.orderId
-      });
-    }
+      const actorId = subjectAsActorId(context.subject);
+      if (actorId === undefined) {
+        throw new CapabilityError("unauthorized", "A signed-in subject is required.");
+      }
 
-    const refundableCents = order.totalCents - order.refundedCents;
-    const refundedCents = input.amountCents ?? refundableCents;
-    if (refundedCents > refundableCents) {
-      throw new CapabilityError("conflict", "Refund amount exceeds the refundable balance.", {
-        orderId: input.orderId,
-        refundableCents
-      });
+      try {
+        return await deps.refundOrder.execute({
+          ...input,
+          actorId
+        });
+      } catch (error) {
+        throw mapRefundError(error);
+      }
     }
+  });
 
-    const status: z.infer<typeof refundOrderOutput>["status"] =
-      refundedCents === refundableCents ? "refunded" : "pending";
+  return [findOrders, refundOrder] as const;
+}
 
-    return {
-      refundId: `re_${order.orderId}`,
-      status,
-      refundedCents
-    };
+function subjectAsActorId(subject: unknown): string | undefined {
+  return typeof subject === "string" && subject.length > 0 ? subject : undefined;
+}
+
+function mapRefundError(error: unknown): CapabilityError {
+  if (error instanceof RefundsDisabledError) {
+    return new CapabilityError("forbidden", "Refunding orders is disabled for this subject.", {
+      actorId: error.actorId
+    });
   }
-});
 
-export const capabilities = [findOrders, refundOrder] as const;
+  if (error instanceof OrderNotFoundError) {
+    return new CapabilityError("not_found", "No paid order exists for that id.", {
+      orderId: error.orderId
+    });
+  }
+
+  if (error instanceof OrderAlreadyRefundedError) {
+    return new CapabilityError("conflict", "Order has already been refunded.", {
+      orderId: error.orderId
+    });
+  }
+
+  if (error instanceof OrderNotRefundableError) {
+    return new CapabilityError("conflict", "Order is not in a refundable state.", {
+      orderId: error.orderId,
+      status: error.status
+    });
+  }
+
+  if (error instanceof RefundAmountExceedsBalanceError) {
+    return new CapabilityError("conflict", "Refund amount exceeds the refundable balance.", {
+      orderId: error.orderId,
+      refundableCents: error.refundableCents
+    });
+  }
+
+  if (error instanceof CapabilityError) {
+    return error;
+  }
+
+  return new CapabilityError("internal", "Unexpected refund failure.");
+}

@@ -9,18 +9,23 @@ import {
 } from "@callsitehq/runtime";
 import { createNodeHandler, type NodeHandler } from "@callsitehq/runtime/node";
 
-import config from "../callsite.config.js";
+import { createOrdersApp, type OrdersAppOptions } from "./app.js";
+
+export interface OrdersFetchHandlerOptions extends FetchHandlerOptions {
+  readonly app?: OrdersAppOptions | undefined;
+}
 
 export interface OrdersServerOptions {
   readonly host?: string;
   readonly port?: number;
 }
 
-export function createOrdersFetchHandler(options: FetchHandlerOptions = {}): FetchHandler {
-  return createFetchHandler(config.capabilities, options);
+export function createOrdersFetchHandler(options: OrdersFetchHandlerOptions = {}): FetchHandler {
+  const { app, ...runtimeOptions } = options;
+  return createFetchHandler(createOrdersApp(app).capabilities, runtimeOptions);
 }
 
-export function createOrdersNodeHandler(options: FetchHandlerOptions = {}): NodeHandler {
+export function createOrdersNodeHandler(options: OrdersFetchHandlerOptions = {}): NodeHandler {
   return createNodeHandler(createOrdersFetchHandler(options));
 }
 
@@ -29,6 +34,18 @@ export function serveOrders(options: OrdersServerOptions = {}): Server {
   const port = options.port ?? 3000;
   const server = createServer(
     createOrdersNodeHandler({
+      app: {
+        events: {
+          publish(event) {
+            console.log(JSON.stringify({ event: event.type, data: event }));
+          }
+        },
+        featureFlags: {
+          enabled(_flag, actorId) {
+            return !actorId.startsWith("blocked_");
+          }
+        }
+      },
       context(request) {
         const subject = request.headers.get("x-subject");
 
