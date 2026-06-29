@@ -16,15 +16,18 @@ Read `docs/design-doc.md` before making architecture-level changes.
 - Format files: `pnpm format`
 - Check formatting: `pnpm format:check`
 
-`pnpm check` runs linting, typechecking, and tests. `pnpm build` builds all
-publishable packages with `tsup`.
+`pnpm check` runs linting, typechecking, and tests. `pnpm build` builds
+publishable packages with `tsup` and runs workspace example build scripts.
 
 ## Package Layout
 
 - `packages/core`: authoring API, IR types, and validation boundary.
 - `packages/emit`: pure renderers from IR to static artifacts.
 - `packages/runtime`: `Request -> Response` runtime dispatch engine.
+- `packages/zod`: Zod adapter for capability config files.
 - `packages/cli`: `callsite` command for generated outputs.
+- `examples/orders`: private end-to-end example covering capabilities, CLI
+  generation, emitted artifacts, and runtime execution.
 
 ## Conventions
 

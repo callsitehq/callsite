@@ -8,6 +8,7 @@ source of truth.
 - `@callsitehq/core`: authoring API, IR types, and the validation boundary.
 - `@callsitehq/emit`: pure renderers from IR to static artifacts.
 - `@callsitehq/runtime`: `Request -> Response` dispatch engine.
+- `@callsitehq/zod`: Zod adapter for capability config files.
 - `@callsitehq/cli`: `callsite` command for building generated outputs.
 
 ## Examples

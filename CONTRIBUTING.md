@@ -10,8 +10,8 @@ pnpm check
 pnpm build
 ```
 
-`pnpm check` runs linting, typechecking, and tests. `pnpm build` builds all publishable
-packages with `tsup`.
+`pnpm check` runs linting, typechecking, and tests. `pnpm build` builds publishable
+packages with `tsup` and runs workspace example build scripts.
 
 ## Formatting
 
@@ -57,4 +57,5 @@ npm view @callsitehq/cli version
 npm view @callsitehq/core version
 npm view @callsitehq/emit version
 npm view @callsitehq/runtime version
+npm view @callsitehq/zod version
 ```

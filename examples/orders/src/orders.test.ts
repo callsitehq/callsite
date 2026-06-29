@@ -1,22 +1,19 @@
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { toIR } from "@callsitehq/core";
 import { emitMcpJson, emitOpenApi } from "@callsitehq/emit";
 
-import { buildOrdersArtifacts } from "./build.js";
-import { ir } from "./capabilities.js";
+import config from "../callsite.config.js";
 import { fetchHandler } from "./server.js";
 
-const mcpOptions = { name: "orders", version: "0.1.0" };
-const openApiOptions = {
-  baseUrl: "https://api.example.com",
-  name: "Orders API",
-  version: "0.1.0"
-};
+const ir = toIR(config.capabilities, config.toJsonSchema);
+const mcpOptions = config.emit?.mcp;
+const openApiOptions = config.emit?.openapi;
 
 describe("orders example", () => {
   it("defines intent-rich capabilities and compiles them to IR", () => {
@@ -43,7 +40,7 @@ describe("orders example", () => {
   it("builds MCP and OpenAPI artifacts from the same IR", async () => {
     const outDir = pathToFileURL(`${await mkdtemp(join(tmpdir(), "callsite-orders-"))}/`);
 
-    await buildOrdersArtifacts(outDir);
+    await writeExampleArtifacts(outDir);
 
     await expect(readFile(new URL("mcp.json", outDir), "utf8")).resolves.toBe(
       emitMcpJson(ir, mcpOptions)
@@ -123,3 +120,11 @@ describe("orders example", () => {
     });
   });
 });
+
+async function writeExampleArtifacts(outDir: URL): Promise<void> {
+  await mkdir(outDir, { recursive: true });
+  await Promise.all([
+    writeFile(new URL("mcp.json", outDir), emitMcpJson(ir, mcpOptions)),
+    writeFile(new URL("openapi.json", outDir), emitOpenApi(ir, openApiOptions))
+  ]);
+}

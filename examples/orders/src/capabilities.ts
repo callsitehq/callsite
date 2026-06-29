@@ -1,12 +1,6 @@
 import { z } from "zod";
 
-import {
-  capability,
-  CapabilityError,
-  toIR,
-  type JsonSchema,
-  type ToJsonSchema
-} from "@callsitehq/core";
+import { capability, CapabilityError } from "@callsitehq/core";
 
 const orderStatus = z.enum(["paid", "shipped", "refunded"]);
 
@@ -170,8 +164,3 @@ export const refundOrder = capability({
 });
 
 export const capabilities = [findOrders, refundOrder] as const;
-
-export const toJsonSchema: ToJsonSchema = (schema, options) =>
-  z.toJSONSchema(schema as z.ZodType, { io: options.direction }) as JsonSchema;
-
-export const ir = toIR(capabilities, toJsonSchema);

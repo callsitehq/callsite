@@ -6,7 +6,9 @@
     "paths": {
       "@callsitehq/core": ["./packages/core/src/index.ts"],
       "@callsitehq/emit": ["./packages/emit/src/index.ts"],
-      "@callsitehq/runtime": ["./packages/runtime/src/index.ts"]
+      "@callsitehq/runtime": ["./packages/runtime/src/index.ts"],
+      "@callsitehq/zod": ["./packages/zod/src/index.ts"],
+      "@callsitehq/cli": ["./packages/cli/src/index.ts"]
     }
   },
   "include": ["packages/**/*.ts", "examples/**/*.ts", "*.config.ts"]

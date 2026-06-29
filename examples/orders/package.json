@@ -3,14 +3,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsup src/build.ts --format esm --platform node --out-dir dist --external @callsitehq/core --external @callsitehq/emit --external zod && node dist/build.js",
+    "build": "callsite build --config callsite.config.ts --out generated",
     "test": "vitest run --root ../.. examples/orders/src/orders.test.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p ../../tsconfig.check.json --noEmit"
   },
   "dependencies": {
+    "@callsitehq/cli": "workspace:*",
     "@callsitehq/core": "workspace:*",
-    "@callsitehq/emit": "workspace:*",
     "@callsitehq/runtime": "workspace:*",
+    "@callsitehq/zod": "workspace:*",
     "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@callsitehq/emit": "workspace:*"
   }
 }

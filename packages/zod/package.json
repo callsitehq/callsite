@@ -1,11 +1,8 @@
 {
-  "name": "@callsitehq/cli",
+  "name": "@callsitehq/zod",
   "version": "0.1.0",
-  "description": "Command-line tools for building Callsite generated artifacts.",
+  "description": "Zod adapter for Callsite capability configs.",
   "type": "module",
-  "bin": {
-    "callsite": "./dist/index.js"
-  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -20,9 +17,14 @@
     "clean": "rm -rf dist *.tsbuildinfo",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
+  "sideEffects": false,
   "dependencies": {
-    "@callsitehq/core": "workspace:*",
-    "@callsitehq/emit": "workspace:*",
-    "jiti": "^2.7.0"
+    "@callsitehq/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "zod": "^4.0.0"
   }
 }
