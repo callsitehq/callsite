@@ -1,5 +1,7 @@
 import { realpathSync } from "node:fs";
 import { access, mkdir, writeFile } from "node:fs/promises";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { dirname, extname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -12,10 +14,25 @@ import {
   type EmitMcpJsonOptions,
   type EmitOpenApiOptions
 } from "@callsitehq/emit";
+import { createFetchHandler } from "@callsitehq/runtime";
+import { createNodeHandler } from "@callsitehq/runtime/node";
 
 export interface BuildOptions {
   readonly configPath?: string | undefined;
   readonly outDir?: string | undefined;
+}
+
+export interface DevOptions {
+  readonly configPath?: string | undefined;
+  readonly host?: string | undefined;
+  readonly port?: number | undefined;
+}
+
+export interface DevServer {
+  readonly server: Server;
+  readonly url: string;
+  readonly capabilityIds: readonly string[];
+  readonly close: () => Promise<void>;
 }
 
 export interface CallsiteConfig {
@@ -43,19 +60,56 @@ export async function build(options: BuildOptions): Promise<void> {
   }
 }
 
+export async function dev(options: DevOptions = {}): Promise<DevServer> {
+  const configPath = await resolveConfigPath(options.configPath);
+  const config = readConfig(await loadConfig(configPath));
+
+  if (!isCallsiteConfig(config)) {
+    throw new TypeError("callsite dev requires a capability config; raw IR configs cannot run.");
+  }
+
+  const host = options.host ?? "127.0.0.1";
+  const port = options.port ?? 3000;
+  const server = createServer(createNodeHandler(createFetchHandler(config.capabilities)));
+  const address = await listen(server, host, port);
+  const url = `http://${hostForUrl(host)}:${address.port}`;
+
+  return {
+    server,
+    url,
+    capabilityIds: config.capabilities.map((capability) => capability.id),
+    close: () => closeServer(server)
+  };
+}
+
 export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<number> {
   const [command, ...args] = argv;
 
-  if (command !== "build") {
+  if (command === undefined || command === "--help" || command === "-h") {
     printHelp();
-    return command === undefined || command === "--help" || command === "-h" ? 0 : 1;
+    return 0;
   }
 
-  const configPath = readFlag(args, "--config");
-  const outDir = readFlag(args, "--out");
+  if (command === "build") {
+    const configPath = readFlag(args, "--config");
+    const outDir = readFlag(args, "--out");
 
-  await build({ configPath, outDir });
-  return 0;
+    await build({ configPath, outDir });
+    return 0;
+  }
+
+  if (command === "dev") {
+    const configPath = readFlag(args, "--config");
+    const host = readFlag(args, "--host");
+    const port = readPortFlag(args, "--port");
+    const server = await dev({ configPath, host, port });
+
+    printDevServer(server);
+    return 0;
+  }
+
+  printHelp();
+  return 1;
 }
 
 const DEFAULT_CONFIG_FILES = [
@@ -144,6 +198,21 @@ function readFlag(args: readonly string[], name: string): string | undefined {
   return args[index + 1];
 }
 
+function readPortFlag(args: readonly string[], name: string): number | undefined {
+  const value = readFlag(args, name);
+
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const port = Number(value);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    throw new TypeError(`${name} must be an integer between 0 and 65535.`);
+  }
+
+  return port;
+}
+
 function runtimeHandler(configPath: string, outDir: string): string {
   const configImport = importSpecifier(resolve(outDir, "handler.ts"), configPath);
 
@@ -184,11 +253,62 @@ async function writeArtifact(path: string, content: string): Promise<void> {
   await writeFile(path, content);
 }
 
+function listen(server: Server, host: string, port: number): Promise<AddressInfo> {
+  return new Promise((resolveListen, rejectListen) => {
+    function onError(error: Error): void {
+      rejectListen(error);
+    }
+
+    server.once("error", onError);
+    server.listen(port, host, () => {
+      server.off("error", onError);
+      const address = server.address();
+
+      if (typeof address === "object" && address !== null) {
+        resolveListen(address);
+        return;
+      }
+
+      rejectListen(new TypeError("Dev server did not bind to a TCP address."));
+    });
+  });
+}
+
+function closeServer(server: Server): Promise<void> {
+  return new Promise((resolveClose, rejectClose) => {
+    server.close((error) => {
+      if (error !== undefined) {
+        rejectClose(error);
+        return;
+      }
+
+      resolveClose();
+    });
+  });
+}
+
+function hostForUrl(host: string): string {
+  return host.includes(":") ? `[${host}]` : host;
+}
+
+function printDevServer(server: DevServer): void {
+  const routes = server.capabilityIds
+    .map((id) => `  POST ${server.url}/capabilities/${encodeURIComponent(id)}`)
+    .join("\n");
+
+  process.stdout.write(`Callsite dev server listening at ${server.url}
+
+Capabilities:
+${routes.length > 0 ? routes : "  (none)"}
+`);
+}
+
 function printHelp(): void {
   process.stdout.write(`callsite
 
 Usage:
   callsite build [--config callsite.config.ts] [--out dist/callsite]
+  callsite dev [--config callsite.config.ts] [--host 127.0.0.1] [--port 3000]
 `);
 }
 

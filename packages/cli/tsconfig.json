@@ -3,6 +3,6 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./tsconfig.tsbuildinfo"
   },
-  "references": [{ "path": "../emit" }],
+  "references": [{ "path": "../emit" }, { "path": "../runtime" }],
   "include": ["src/**/*.ts"]
 }

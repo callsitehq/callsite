@@ -46,6 +46,8 @@ export interface FetchHandlerOptions {
   readonly context?: FetchContextProvider;
 }
 
+export type FetchHandler = (request: Request) => Promise<Response> | Response;
+
 export function createRuntimeManifest(capabilities: readonly AnyCapability[]): RuntimeManifest {
   return {
     capabilities: Object.assign(
@@ -106,7 +108,7 @@ function capabilityFromManifest(
 export function createFetchHandler(
   manifestOrCapabilities: RuntimeManifest | readonly AnyCapability[],
   options: FetchHandlerOptions = {}
-): (request: Request) => Promise<Response> {
+): FetchHandler {
   const basePath = normalizeBasePath(options.basePath ?? "/capabilities");
   const manifest = isRuntimeManifest(manifestOrCapabilities)
     ? manifestOrCapabilities

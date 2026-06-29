@@ -9,12 +9,12 @@ source of truth.
 - `@callsitehq/emit`: pure renderers from IR to static artifacts.
 - `@callsitehq/runtime`: `Request -> Response` dispatch engine.
 - `@callsitehq/zod`: Zod adapter for capability config files.
-- `@callsitehq/cli`: `callsite` command for building generated outputs.
+- `@callsitehq/cli`: `callsite` command for building outputs and running local dev.
 
 ## Examples
 
 - `examples/orders`: full Zod-backed orders flow from capabilities to generated
-  MCP/OpenAPI artifacts, a runtime handler, and runtime execution.
+  MCP/OpenAPI artifacts, a runtime handler, and local runtime execution.
 
 ## Development
 

@@ -66,6 +66,9 @@ importers:
       '@callsitehq/emit':
         specifier: workspace:*
         version: link:../emit
+      '@callsitehq/runtime':
+        specifier: workspace:*
+        version: link:../runtime
       jiti:
         specifier: ^2.7.0
         version: 2.7.0

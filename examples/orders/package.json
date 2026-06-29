@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "callsite build --config callsite.config.ts --out generated",
+    "dev": "callsite dev --config callsite.config.ts",
     "test": "vitest run --root ../.. examples/orders/src/orders.test.ts",
     "typecheck": "tsc -p ../../tsconfig.check.json --noEmit"
   },

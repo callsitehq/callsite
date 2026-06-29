@@ -1,9 +1,9 @@
 # Callsite — Product Design & Architecture
 
-_Define your surface once in TypeScript; generate every agent-facing artifact. Generate-only, no hosting._
+_Define your surface once in TypeScript; generate every agent-facing artifact and run it locally. No hosted control plane._
 
 > **Name & identifiers.** Product: **Callsite** — a capability is exactly a callsite an agent reaches.
-> npm scope `@callsitehq` (the bare `@callsite` scope collides with an existing npm account; `hq` lives only on the namespace and never appears in the CLI or product name). CLI binary `callsite` (e.g. `callsite build`). Packages: `@callsitehq/core`, `@callsitehq/emit`, `@callsitehq/runtime`, `@callsitehq/cli`. Domain `callsitehq.com`. GitHub org `callsitehq` (rename the current `surface` repo).
+> npm scope `@callsitehq` (the bare `@callsite` scope collides with an existing npm account; `hq` lives only on the namespace and never appears in the CLI or product name). CLI binary `callsite` (e.g. `callsite build`, `callsite dev`). Packages: `@callsitehq/core`, `@callsitehq/emit`, `@callsitehq/runtime`, `@callsitehq/cli`. Domain `callsitehq.com`. GitHub org `callsitehq` (rename the current `surface` repo).
 
 ---
 

@@ -13,6 +13,13 @@ import { createRuntimeManifest, execute } from "@callsitehq/runtime";
 `createFetchHandler()` is also exported as a thin web-standard
 `Request -> Response` adapter over `execute()`.
 
+Node-specific hosting code lives behind a subpath so the default runtime export
+stays fetch-native:
+
+```ts
+import { createNodeHandler } from "@callsitehq/runtime/node";
+```
+
 ## Status
 
 Early `0.x` package. The transport-neutral runtime path is implemented first;
