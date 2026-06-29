@@ -182,6 +182,10 @@ function unsupportedEventReason(event: unknown): string | undefined {
     return "Expected headers to contain only valid HTTP header names.";
   }
 
+  if (!recordValuesAreHeaderValues(event.headers)) {
+    return "Expected headers to contain only valid HTTP header values.";
+  }
+
   const forwardedProto = headerValue(event.headers, "x-forwarded-proto");
   if (forwardedProto !== undefined && forwardedProto !== "http" && forwardedProto !== "https") {
     return 'Expected x-forwarded-proto to be "http" or "https".';
@@ -191,12 +195,20 @@ function unsupportedEventReason(event: unknown): string | undefined {
     return "Expected cookies to be an array of strings.";
   }
 
+  if (event.cookies !== undefined && !event.cookies.every(isHeaderValue)) {
+    return "Expected cookies to contain only valid HTTP header values.";
+  }
+
   if (event.rawQueryString !== undefined && typeof event.rawQueryString !== "string") {
     return "Expected rawQueryString to be a string.";
   }
 
   if (event.rawPath !== undefined && !isNonEmptyString(event.rawPath)) {
     return "Expected rawPath to be a non-empty string when provided.";
+  }
+
+  if (event.rawPath !== undefined && !isValidRequestPath(event.rawPath)) {
+    return "Expected rawPath to be a valid request path when provided.";
   }
 
   if (event.body !== undefined && typeof event.body !== "string") {
@@ -227,6 +239,10 @@ function unsupportedEventReason(event: unknown): string | undefined {
     return "Expected requestContext.http.method.";
   }
 
+  if (!isFetchMethod(event.requestContext.http.method)) {
+    return "Expected requestContext.http.method to be a valid Fetch method.";
+  }
+
   if (
     event.requestContext.http.path !== undefined &&
     typeof event.requestContext.http.path !== "string"
@@ -234,8 +250,16 @@ function unsupportedEventReason(event: unknown): string | undefined {
     return "Expected requestContext.http.path to be a string when provided.";
   }
 
-  if (event.rawPath === undefined && !isNonEmptyString(event.requestContext.http.path)) {
-    return "Expected rawPath or requestContext.http.path.";
+  if (event.rawPath === undefined) {
+    const fallbackPath = event.requestContext.http.path;
+
+    if (!isNonEmptyString(fallbackPath)) {
+      return "Expected rawPath or requestContext.http.path.";
+    }
+
+    if (!isValidRequestPath(fallbackPath)) {
+      return "Expected requestContext.http.path to be a valid request path when provided.";
+    }
   }
 
   return undefined;
@@ -272,8 +296,28 @@ function recordKeysAreHeaderNames(value: Record<string, unknown>): boolean {
   return Object.keys(value).every(isHeaderName);
 }
 
+function recordValuesAreHeaderValues(value: Record<string, unknown>): boolean {
+  return Object.values(value).every((item) => typeof item === "string" && isHeaderValue(item));
+}
+
 function isHeaderName(value: string): boolean {
   return /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(value);
+}
+
+function isHeaderValue(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+
+    if (code === 0x7f || code <= 0x08 || (code >= 0x0a && code <= 0x1f)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function isFetchMethod(value: string): boolean {
+  return isHeaderName(value) && !["CONNECT", "TRACE", "TRACK"].includes(value.toUpperCase());
 }
 
 function headerValue(headers: Record<string, unknown>, name: string): string | undefined {
@@ -288,6 +332,30 @@ function isValidUrlHost(host: string): boolean {
   } catch {
     return false;
   }
+}
+
+function isValidRequestPath(path: string): boolean {
+  const normalizedPath = pathWithLeadingSlash(path);
+
+  return (
+    !hasControlCharacter(path) && !normalizedPath.startsWith("//") && !isAbsoluteUrlReference(path)
+  );
+}
+
+function hasControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+
+    if (code <= 0x1f || code === 0x7f) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isAbsoluteUrlReference(value: string): boolean {
+  return /^[A-Za-z][A-Za-z0-9+.-]*:/.test(value);
 }
 
 function isStringArray(value: unknown): value is string[] {

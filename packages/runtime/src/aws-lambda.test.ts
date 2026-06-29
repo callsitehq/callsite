@@ -229,6 +229,26 @@ describe("createLambdaHandler", () => {
       reason: "Expected headers to contain only valid HTTP header names."
     },
     {
+      name: "header values with CRLF",
+      mutate(eventRecord: Record<string, unknown>) {
+        eventRecord.headers = {
+          host: "api.example.com",
+          "x-bad": "value\r\nx-injected: yes"
+        };
+      },
+      reason: "Expected headers to contain only valid HTTP header values."
+    },
+    {
+      name: "header values with NUL",
+      mutate(eventRecord: Record<string, unknown>) {
+        eventRecord.headers = {
+          host: "api.example.com",
+          "x-bad": "value\0"
+        };
+      },
+      reason: "Expected headers to contain only valid HTTP header values."
+    },
+    {
       name: "invalid forwarded protocol",
       mutate(eventRecord: Record<string, unknown>) {
         eventRecord.headers = {
@@ -256,6 +276,20 @@ describe("createLambdaHandler", () => {
       reason: "Expected cookies to be an array of strings."
     },
     {
+      name: "cookies with CRLF",
+      mutate(eventRecord: Record<string, unknown>) {
+        eventRecord.cookies = ["session=abc\r\nx-injected=yes"];
+      },
+      reason: "Expected cookies to contain only valid HTTP header values."
+    },
+    {
+      name: "cookies with NUL",
+      mutate(eventRecord: Record<string, unknown>) {
+        eventRecord.cookies = ["session=abc\0"];
+      },
+      reason: "Expected cookies to contain only valid HTTP header values."
+    },
+    {
       name: "non-string rawQueryString",
       mutate(eventRecord: Record<string, unknown>) {
         eventRecord.rawQueryString = 123;
@@ -270,6 +304,35 @@ describe("createLambdaHandler", () => {
       reason: "Expected rawPath to be a non-empty string when provided."
     },
     {
+      name: "network-path rawPath",
+      mutate(eventRecord: Record<string, unknown>) {
+        eventRecord.rawPath = "//evil.example/capabilities/demo.greet";
+      },
+      reason: "Expected rawPath to be a valid request path when provided."
+    },
+    {
+      name: "absolute URL rawPath",
+      mutate(eventRecord: Record<string, unknown>) {
+        eventRecord.rawPath = "https://evil.example/capabilities/demo.greet";
+      },
+      reason: "Expected rawPath to be a valid request path when provided."
+    },
+    {
+      name: "rawPath with control characters",
+      mutate(eventRecord: Record<string, unknown>) {
+        eventRecord.rawPath = "/capabilities/demo.greet\nx";
+      },
+      reason: "Expected rawPath to be a valid request path when provided."
+    },
+    {
+      name: "network-path requestContext.http.path fallback",
+      mutate(eventRecord: Record<string, unknown>) {
+        delete eventRecord.rawPath;
+        requestContextHttp(eventRecord).path = "//evil.example/capabilities/demo.greet";
+      },
+      reason: "Expected requestContext.http.path to be a valid request path when provided."
+    },
+    {
       name: "non-string body",
       mutate(eventRecord: Record<string, unknown>) {
         eventRecord.body = { name: "Ada" };
@@ -282,6 +345,27 @@ describe("createLambdaHandler", () => {
         eventRecord.isBase64Encoded = "false";
       },
       reason: "Expected isBase64Encoded to be a boolean."
+    },
+    {
+      name: "method with spaces",
+      mutate(eventRecord: Record<string, unknown>) {
+        requestContextHttp(eventRecord).method = "BAD METHOD";
+      },
+      reason: "Expected requestContext.http.method to be a valid Fetch method."
+    },
+    {
+      name: "method with newline",
+      mutate(eventRecord: Record<string, unknown>) {
+        requestContextHttp(eventRecord).method = "GET\nX";
+      },
+      reason: "Expected requestContext.http.method to be a valid Fetch method."
+    },
+    {
+      name: "CONNECT method",
+      mutate(eventRecord: Record<string, unknown>) {
+        requestContextHttp(eventRecord).method = "CONNECT";
+      },
+      reason: "Expected requestContext.http.method to be a valid Fetch method."
     }
   ] as const;
 
@@ -447,6 +531,12 @@ function expectUnsupportedEvent(response: AwsLambdaHttpApiV2Result, reason: stri
     }),
     isBase64Encoded: false
   });
+}
+
+function requestContextHttp(eventRecord: Record<string, unknown>): Record<string, unknown> {
+  const requestContext = eventRecord.requestContext as Record<string, unknown>;
+
+  return requestContext.http as Record<string, unknown>;
 }
 
 const lambdaContext = {
