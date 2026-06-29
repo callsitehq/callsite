@@ -3,7 +3,7 @@
 Command-line interface for Callsite.
 
 The package installs the `callsite` binary for generating agent-facing artifacts
-from a Callsite config.
+from a Callsite config. The current build command emits `mcp.json`.
 
 ```sh
 callsite build

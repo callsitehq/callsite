@@ -1,100 +1,97 @@
-import type { CapabilityIR, CapabilityIRNode, JsonObject } from "@callsitehq/core";
+import type { CapabilityIR, IR, JsonObject, JsonValue } from "@callsitehq/core";
 
-export interface EmitOptions {
+export interface EmitMcpJsonOptions {
   readonly name?: string;
   readonly version?: string;
+}
+
+export interface EmitOpenApiOptions extends EmitMcpJsonOptions {
   readonly baseUrl?: string;
 }
 
-export function emitMcpJson(ir: CapabilityIR, options: EmitOptions = {}): string {
+export type EmitOptions = EmitOpenApiOptions;
+
+const CANONICAL_MCP_TOOL_FIELDS = new Set(["name", "description", "inputSchema", "outputSchema"]);
+
+export function emitMcpJson(ir: IR, options: EmitMcpJsonOptions = {}): string {
   return stringify({
     name: options.name ?? "callsite",
     version: options.version ?? "0.0.0",
-    tools: ir.capabilities.map((capability) => ({
-      name: capability.id,
-      description: capability.intent,
-      inputSchema: capability.inputSchema,
-      annotations: {
-        destructiveHint: capability.destructive
-      }
-    }))
+    tools: ir.capabilities.map(capabilityToMcpTool)
   });
 }
 
-export function emitOpenApi(ir: CapabilityIR, options: EmitOptions = {}): string {
-  const paths = Object.fromEntries(
-    ir.capabilities.map((capability) => [
-      `/capabilities/${capability.id}`,
-      capabilityToOpenApiPath(capability)
-    ])
-  );
-
-  return stringify({
-    openapi: "3.1.0",
-    info: {
-      title: options.name ?? "Callsite API",
-      version: options.version ?? "0.0.0"
-    },
-    ...(options.baseUrl === undefined ? {} : { servers: [{ url: options.baseUrl }] }),
-    paths
-  });
+export function emitOpenApi(ir: IR, options: EmitOpenApiOptions = {}): string {
+  void ir;
+  void options;
+  throw new Error("emitOpenApi is not implemented for the current IR yet.");
 }
 
-export function emitChatGptAppConfig(ir: CapabilityIR, options: EmitOptions = {}): string {
-  return stringify({
-    name: options.name ?? "callsite",
-    version: options.version ?? "0.0.0",
-    tools: ir.capabilities.map((capability) => ({
-      id: capability.id,
-      description: capability.intent,
-      input_schema: capability.inputSchema
-    }))
-  });
+export function emitChatGptAppConfig(ir: IR, options: EmitMcpJsonOptions = {}): string {
+  void ir;
+  void options;
+  throw new Error("emitChatGptAppConfig is not implemented for the current IR yet.");
 }
 
-export function emitClaudeConnectorConfig(ir: CapabilityIR, options: EmitOptions = {}): string {
-  return stringify({
-    name: options.name ?? "callsite",
-    version: options.version ?? "0.0.0",
-    capabilities: ir.capabilities.map((capability) => ({
-      name: capability.id,
-      description: capability.intent,
-      input_schema: capability.inputSchema
-    }))
-  });
+export function emitClaudeConnectorConfig(ir: IR, options: EmitMcpJsonOptions = {}): string {
+  void ir;
+  void options;
+  throw new Error("emitClaudeConnectorConfig is not implemented for the current IR yet.");
 }
 
-function capabilityToOpenApiPath(capability: CapabilityIRNode): JsonObject {
-  return {
-    post: {
-      operationId: capability.id.replaceAll(".", "_"),
-      summary: capability.intent,
-      requestBody: {
-        required: true,
-        content: {
-          "application/json": {
-            schema: capability.inputSchema
-          }
-        }
-      },
-      responses: {
-        "200": {
-          description: "Capability result",
-          content: {
-            "application/json": {
-              schema: capability.outputSchema
-            }
-          }
-        },
-        "400": {
-          description: "Invalid request"
-        },
-        "500": {
-          description: "Capability error"
-        }
-      }
+function capabilityToMcpTool(capability: CapabilityIR): JsonObject {
+  assertObjectSchema(capability, "input", capability.input);
+  assertObjectSchema(capability, "output", capability.output);
+
+  const canonicalAnnotations: JsonObject = {
+    destructiveHint: capability.destructive
+  };
+  const override = capability.overrides.mcp ?? {};
+  const passthrough = capability.passthrough.mcp ?? {};
+  const overrideAnnotations = jsonObjectValue(override.annotations);
+
+  const tool: JsonObject = {
+    name: capability.id,
+    description: capability.intent,
+    inputSchema: capability.input,
+    outputSchema: capability.output,
+    ...omitCanonicalMcpFields(override),
+    annotations: {
+      ...canonicalAnnotations,
+      ...overrideAnnotations,
+      destructiveHint: capability.destructive
     }
   };
+
+  return { ...tool, ...passthrough };
+}
+
+function assertObjectSchema(
+  capability: CapabilityIR,
+  direction: "input" | "output",
+  schema: JsonObject
+): void {
+  if (schema.type !== "object") {
+    throw new TypeError(
+      `MCP ${direction} schema for capability "${capability.id}" must be a JSON object schema.`
+    );
+  }
+}
+
+function omitCanonicalMcpFields(value: JsonObject): JsonObject {
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      ([key]) => key !== "annotations" && !CANONICAL_MCP_TOOL_FIELDS.has(key)
+    )
+  );
+}
+
+function jsonObjectValue(value: JsonValue | undefined): JsonObject {
+  if (value === undefined || value === null || Array.isArray(value) || typeof value !== "object") {
+    return {};
+  }
+
+  return value as JsonObject;
 }
 
 function stringify(value: unknown): string {

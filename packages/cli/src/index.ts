@@ -2,14 +2,9 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import {
-  emitChatGptAppConfig,
-  emitClaudeConnectorConfig,
-  emitMcpJson,
-  emitOpenApi
-} from "@callsitehq/emit";
+import { emitMcpJson } from "@callsitehq/emit";
 
-import type { CapabilityIR } from "@callsitehq/core";
+import type { IR } from "@callsitehq/core";
 
 export interface BuildOptions {
   readonly configPath: string;
@@ -23,9 +18,6 @@ export async function build(options: BuildOptions): Promise<void> {
   const outDir = resolve(options.outDir);
 
   await writeArtifact(resolve(outDir, "mcp.json"), emitMcpJson(ir));
-  await writeArtifact(resolve(outDir, "openapi.json"), emitOpenApi(ir));
-  await writeArtifact(resolve(outDir, "chatgpt-app.json"), emitChatGptAppConfig(ir));
-  await writeArtifact(resolve(outDir, "claude-connector.json"), emitClaudeConnectorConfig(ir));
 }
 
 export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<number> {
@@ -43,7 +35,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
   return 0;
 }
 
-function readIR(value: unknown): CapabilityIR {
+function readIR(value: unknown): IR {
   if (
     typeof value !== "object" ||
     value === null ||
@@ -52,10 +44,12 @@ function readIR(value: unknown): CapabilityIR {
     !("capabilities" in value) ||
     !Array.isArray(value.capabilities)
   ) {
-    throw new TypeError("Callsite config must export a CapabilityIR object.");
+    throw new TypeError(
+      "Callsite config must export a root IR object: { version: 1, capabilities: [...] }."
+    );
   }
-
-  return value as CapabilityIR;
+  // TODO: Add deep IR validation before manual IR config files become a supported authoring path.
+  return value as IR;
 }
 
 function readFlag(args: readonly string[], name: string): string | undefined {

@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { build } from "./index.js";
 
 describe("build", () => {
-  it("writes generated artifacts", async () => {
+  it("writes only mcp.json for the current IR build", async () => {
     const directory = await mkdtemp(join(tmpdir(), "callsite-cli-"));
     const configPath = join(directory, "callsite.config.mjs");
     const outDir = join(directory, "out");
@@ -19,17 +19,36 @@ describe("build", () => {
         capabilities: [{
           id: "demo.greet",
           intent: "Greet a person by name.",
-          inputSchema: { type: "object" },
-          outputSchema: { type: "object" },
+          input: { type: "object" },
+          output: { type: "object" },
           destructive: false,
-          examples: []
+          examples: [],
+          overrides: {},
+          passthrough: {}
         }]
       };`
     );
 
     await build({ configPath, outDir });
 
+    await expect(readdir(outDir)).resolves.toEqual(["mcp.json"]);
     await expect(readFile(join(outDir, "mcp.json"), "utf8")).resolves.toContain("demo.greet");
-    await expect(readFile(join(outDir, "openapi.json"), "utf8")).resolves.toContain("3.1.0");
+  });
+
+  it("rejects config files that do not export root IR", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "callsite-cli-"));
+    const configPath = join(directory, "callsite.config.mjs");
+    const outDir = join(directory, "out");
+
+    await writeFile(
+      configPath,
+      `export default {
+        capabilities: []
+      };`
+    );
+
+    await expect(build({ configPath, outDir })).rejects.toThrow(
+      "Callsite config must export a root IR object"
+    );
   });
 });

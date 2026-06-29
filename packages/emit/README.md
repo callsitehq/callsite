@@ -2,13 +2,14 @@
 
 Pure renderers for Callsite artifacts.
 
-Use this package to turn a Callsite IR into static agent-facing files such as
-MCP config, OpenAPI, ChatGPT app config, and Claude connector config.
+Use this package to turn a Callsite IR into static agent-facing files.
+The first implemented renderer emits MCP tool configuration.
 
 ```ts
-import { emitMcpJson, emitOpenApi } from "@callsitehq/emit";
+import { emitMcpJson } from "@callsitehq/emit";
 ```
 
 ## Status
 
-Early `0.x` package. Output formats may change as surface support is expanded.
+Early `0.x` package. MCP output is implemented first; other surfaces are still
+being rebuilt against the current IR.
