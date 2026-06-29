@@ -20,6 +20,26 @@ stays fetch-native:
 import { createNodeHandler } from "@callsitehq/runtime/node";
 ```
 
+Express hosting code is also a shallow adapter over the same fetch handler:
+
+```ts
+import { createFetchHandler } from "@callsitehq/runtime";
+import { createExpressHandler } from "@callsitehq/runtime/express";
+
+const callsiteHandler = createFetchHandler(capabilities, {
+  context(request) {
+    return {
+      subject: request.headers.get("x-subject"),
+      log(event, data) {
+        console.log({ event, data });
+      }
+    };
+  }
+});
+
+app.use("/capabilities", createExpressHandler(callsiteHandler));
+```
+
 ## Status
 
 Early `0.x` package. The transport-neutral runtime path is implemented first;

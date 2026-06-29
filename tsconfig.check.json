@@ -7,6 +7,7 @@
       "@callsitehq/core": ["./packages/core/src/index.ts"],
       "@callsitehq/emit": ["./packages/emit/src/index.ts"],
       "@callsitehq/runtime": ["./packages/runtime/src/index.ts"],
+      "@callsitehq/runtime/express": ["./packages/runtime/src/express.ts"],
       "@callsitehq/runtime/node": ["./packages/runtime/src/node.ts"],
       "@callsitehq/zod": ["./packages/zod/src/index.ts"],
       "@callsitehq/cli": ["./packages/cli/src/index.ts"]

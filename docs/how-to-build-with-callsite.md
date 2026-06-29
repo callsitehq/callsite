@@ -260,6 +260,23 @@ curl -s \
   -d '{"email":"ada@example.com","status":"paid"}'
 ```
 
+Express apps use the same fetch handler through a shallow middleware adapter:
+
+```ts
+import express from "express";
+
+import { createExpressHandler } from "@callsitehq/runtime/express";
+
+const app = express();
+app.use(express.json());
+app.use("/capabilities", createExpressHandler(createOrdersFetchHandler()));
+```
+
+Mount the middleware at the same base path used by the fetch handler, which is
+`/capabilities` by default. The Express adapter does not own routing, auth,
+server startup, or error handling. It only translates Express requests and
+responses into the same web-standard runtime path.
+
 ## 7. Test The Contract
 
 A useful test suite covers both halves:
