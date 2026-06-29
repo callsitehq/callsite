@@ -6,7 +6,7 @@ Use this package to define intent-level capabilities and build the intermediate
 representation that Callsite renderers and runtimes consume.
 
 ```ts
-import { capability, defineCallsite } from "@callsitehq/core";
+import { capability, toIR } from "@callsitehq/core";
 ```
 
 ## Status

@@ -17,5 +17,8 @@
     "clean": "rm -rf dist *.tsbuildinfo",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "devDependencies": {
+    "zod": "^4.0.0"
+  }
 }
