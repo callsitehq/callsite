@@ -9,5 +9,5 @@
       "@callsitehq/runtime": ["./packages/runtime/src/index.ts"]
     }
   },
-  "include": ["packages/**/*.ts", "*.config.ts"]
+  "include": ["packages/**/*.ts", "examples/**/*.ts", "*.config.ts"]
 }

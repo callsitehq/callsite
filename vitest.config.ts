@@ -13,6 +13,6 @@ export default defineConfig({
       provider: "v8",
       reportsDirectory: "coverage"
     },
-    include: ["packages/**/*.test.ts"]
+    include: ["packages/**/*.test.ts", "examples/**/*.test.ts"]
   }
 });

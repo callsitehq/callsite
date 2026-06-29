@@ -4,6 +4,7 @@
     { "path": "./packages/core" },
     { "path": "./packages/emit" },
     { "path": "./packages/runtime" },
-    { "path": "./packages/cli" }
+    { "path": "./packages/cli" },
+    { "path": "./examples/orders" }
   ]
 }

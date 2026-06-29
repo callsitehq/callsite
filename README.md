@@ -10,10 +10,22 @@ source of truth.
 - `@callsitehq/runtime`: `Request -> Response` dispatch engine.
 - `@callsitehq/cli`: `callsite` command for building generated outputs.
 
+## Examples
+
+- `examples/orders`: full Zod-backed orders flow from capabilities to generated
+  MCP/OpenAPI artifacts and runtime execution.
+
 ## Development
 
 ```sh
 pnpm install
 pnpm check
 pnpm build
+```
+
+To regenerate only the orders example artifacts and any workspace dependencies
+it needs:
+
+```sh
+pnpm --filter @callsitehq/example-orders... build
 ```

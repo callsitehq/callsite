@@ -1,0 +1,16 @@
+{
+  "name": "@callsitehq/example-orders",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsup src/build.ts --format esm --platform node --out-dir dist --external @callsitehq/core --external @callsitehq/emit --external zod && node dist/build.js",
+    "test": "vitest run --root ../.. examples/orders/src/orders.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@callsitehq/core": "workspace:*",
+    "@callsitehq/emit": "workspace:*",
+    "@callsitehq/runtime": "workspace:*",
+    "zod": "^4.0.0"
+  }
+}
