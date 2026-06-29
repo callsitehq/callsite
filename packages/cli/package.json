@@ -1,0 +1,27 @@
+{
+  "name": "@callsitehq/cli",
+  "version": "0.0.0",
+  "description": "Command-line tools for building Callsite generated artifacts.",
+  "type": "module",
+  "bin": {
+    "callsite": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@callsitehq/core": "workspace:*",
+    "@callsitehq/emit": "workspace:*"
+  }
+}

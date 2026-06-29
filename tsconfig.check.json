@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "composite": false,
+    "paths": {
+      "@callsitehq/core": ["./packages/core/src/index.ts"],
+      "@callsitehq/emit": ["./packages/emit/src/index.ts"],
+      "@callsitehq/runtime": ["./packages/runtime/src/index.ts"]
+    }
+  },
+  "include": ["packages/**/*.ts", "*.config.ts"]
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@callsitehq/core",
+  "version": "0.0.0",
+  "description": "Authoring API and IR types for Callsite capabilities.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "sideEffects": false
+}

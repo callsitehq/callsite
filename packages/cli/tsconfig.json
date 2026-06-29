@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./tsconfig.tsbuildinfo"
+  },
+  "references": [{ "path": "../emit" }],
+  "include": ["src/**/*.ts"]
+}
