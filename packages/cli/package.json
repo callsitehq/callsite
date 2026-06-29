@@ -23,7 +23,6 @@
   "dependencies": {
     "@callsitehq/core": "workspace:*",
     "@callsitehq/emit": "workspace:*",
-    "@callsitehq/runtime": "workspace:*",
     "jiti": "^2.7.0"
   }
 }

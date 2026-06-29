@@ -9,11 +9,12 @@ import { toIR } from "@callsitehq/core";
 import { emitMcpJson, emitOpenApi } from "@callsitehq/emit";
 
 import config from "../callsite.config.js";
-import { fetchHandler } from "../generated/handler.js";
+import { createOrdersFetchHandler } from "./server.js";
 
 const ir = toIR(config.capabilities, config.toJsonSchema);
 const mcpOptions = config.emit?.mcp;
 const openApiOptions = config.emit?.openapi;
+const fetchHandler = createOrdersFetchHandler();
 
 describe("orders example", () => {
   it("defines intent-rich capabilities and compiles them to IR", () => {
@@ -57,17 +58,6 @@ describe("orders example", () => {
     await expect(
       readFile(new URL("../generated/openapi.json", import.meta.url), "utf8")
     ).resolves.toBe(emitOpenApi(ir, openApiOptions));
-    await expect(readFile(new URL("../generated/handler.ts", import.meta.url), "utf8")).resolves
-      .toBe(`import { createFetchHandler } from "@callsitehq/runtime";
-
-import config from "../callsite.config.js";
-
-export const fetchHandler = createFetchHandler(config.capabilities);
-
-export default {
-  fetch: fetchHandler
-};
-`);
   });
 
   it("serves the OpenAPI-shaped success response through runtime", async () => {
@@ -129,6 +119,29 @@ export default {
         }
       }
     });
+  });
+
+  it("lets the host app compose runtime context around capabilities", async () => {
+    const events: [string, Record<string, unknown> | undefined][] = [];
+    const hostOwnedHandler = createOrdersFetchHandler({
+      context() {
+        return {
+          log(event, data) {
+            events.push([event, data]);
+          }
+        };
+      }
+    });
+
+    const response = await hostOwnedHandler(
+      new Request("https://api.example.com/capabilities/orders.refund", {
+        body: JSON.stringify({ orderId: "ord_1001" }),
+        method: "POST"
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(events).toEqual([["orders.refund.start", { orderId: "ord_1001" }]]);
   });
 });
 

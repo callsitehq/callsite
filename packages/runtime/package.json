@@ -1,7 +1,7 @@
 {
   "name": "@callsitehq/runtime",
   "version": "0.1.0",
-  "description": "Runtime dispatch engine for generated Callsite handlers.",
+  "description": "Runtime dispatch engine for Callsite capabilities.",
   "type": "module",
   "exports": {
     ".": {

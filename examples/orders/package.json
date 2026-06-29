@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "callsite build --config callsite.config.ts --out generated",
-    "dev": "callsite dev --config callsite.config.ts",
+    "dev": "tsx src/server.ts",
     "test": "vitest run --root ../.. examples/orders/src/orders.test.ts",
     "typecheck": "tsc -p ../../tsconfig.check.json --noEmit"
   },
@@ -16,6 +16,7 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
-    "@callsitehq/emit": "workspace:*"
+    "@callsitehq/emit": "workspace:*",
+    "tsx": "^4.22.4"
   }
 }

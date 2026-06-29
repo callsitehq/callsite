@@ -3,19 +3,15 @@
 Command-line interface for Callsite.
 
 The package installs the `callsite` binary for generating agent-facing artifacts
-and running capabilities locally from a Callsite config. The current build
-command emits `mcp.json`, `openapi.json`, and a runtime `handler.ts` for
-capability configs.
+from a Callsite config. The current build command emits `mcp.json`,
+and `openapi.json`.
 
 ```sh
 callsite build
 ```
 
-Run the same capabilities locally during development:
-
-```sh
-callsite dev
-```
+Host applications run capabilities by importing their config and composing it
+with `@callsitehq/runtime` and any host-specific adapter.
 
 By default the CLI looks for `callsite.config.ts`, then the JavaScript config
 variants. Zod-backed projects can use `@callsitehq/zod`:

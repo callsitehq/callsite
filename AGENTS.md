@@ -39,6 +39,14 @@ publishable packages with `tsup` and runs workspace example build scripts.
 - Keep public package READMEs short and package-specific.
 - Put maintainer workflows in `CONTRIBUTING.md`, not the top-level README.
 
+## Architecture Guardrails
+
+- Preserve host-owned composition. Do not add CLI/server features that make
+  Callsite own an application process, auth, credentials, database clients,
+  logging, or deployment lifecycle. Callsite should provide build artifacts,
+  runtime functions, and thin adapters that the host application imports and
+  composes.
+
 ## Publishing
 
 Publishing uses Changesets. See `CONTRIBUTING.md` for the release process.
