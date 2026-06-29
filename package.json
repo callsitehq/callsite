@@ -12,6 +12,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
+    "sync:agent-docs": "node scripts/sync-agent-docs.mjs",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.check.json --noEmit"
   },
