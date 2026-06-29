@@ -16,6 +16,13 @@ source of truth.
 - `examples/orders`: full Zod-backed orders flow from capabilities to generated
   MCP/OpenAPI artifacts and host-owned runtime execution.
 
+## Docs
+
+- [How To Build With Callsite](docs/how-to-build-with-callsite.md): guide to
+  defining capabilities, composing app services, passing request context, and
+  emitting artifacts.
+- [Design Doc](docs/design-doc.md): product design and architecture notes.
+
 ## Development
 
 ```sh

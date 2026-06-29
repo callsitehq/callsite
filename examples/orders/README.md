@@ -8,6 +8,9 @@ Private example showing the full Callsite loop:
 - emit `generated/mcp.json` and `generated/openapi.json`
 - compose the capabilities into an app-owned Node server in `src/server.ts`
 
+See [How To Build With Callsite](../../docs/how-to-build-with-callsite.md) for
+the full development guide.
+
 ```sh
 pnpm --filter @callsitehq/example-orders... build
 pnpm --filter @callsitehq/example-orders dev
