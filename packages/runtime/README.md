@@ -40,6 +40,34 @@ const callsiteHandler = createFetchHandler(capabilities, {
 app.use("/capabilities", createExpressHandler(callsiteHandler));
 ```
 
+AWS Lambda hosting for API Gateway HTTP API v2 and Lambda Function URLs lives
+behind its own subpath:
+
+```ts
+import { createFetchHandler } from "@callsitehq/runtime";
+import { createLambdaHandler } from "@callsitehq/runtime/aws-lambda";
+
+const callsiteHandler = createFetchHandler(capabilities, {
+  context(request) {
+    return {
+      subject: request.headers.get("x-subject"),
+      log(event, data) {
+        console.log({ event, data });
+      }
+    };
+  }
+});
+
+export const handler = createLambdaHandler(callsiteHandler);
+```
+
+The Lambda adapter intentionally targets payload format v2 first. API Gateway
+v1, ALB events, and streaming responses are not normalized by this adapter.
+For custom domains with API mappings, configure
+`createFetchHandler(capabilities, { basePath })` to match the Lambda event route
+path; API Gateway v2 `rawPath` does not include the public custom-domain mapping
+prefix.
+
 ## Status
 
 Early `0.x` package. The transport-neutral runtime path is implemented first;

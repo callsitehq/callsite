@@ -5,6 +5,10 @@ export default defineConfig({
     alias: {
       "@callsitehq/core": new URL("./packages/core/src/index.ts", import.meta.url).pathname,
       "@callsitehq/emit": new URL("./packages/emit/src/index.ts", import.meta.url).pathname,
+      "@callsitehq/runtime/aws-lambda": new URL(
+        "./packages/runtime/src/aws-lambda.ts",
+        import.meta.url
+      ).pathname,
       "@callsitehq/runtime/express": new URL("./packages/runtime/src/express.ts", import.meta.url)
         .pathname,
       "@callsitehq/runtime/node": new URL("./packages/runtime/src/node.ts", import.meta.url)

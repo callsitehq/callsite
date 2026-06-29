@@ -1,29 +1,16 @@
-import type { IncomingHttpHeaders } from "node:http";
+import type {
+  NextFunction as ExpressNextFunctionType,
+  Request as ExpressRequestType,
+  RequestHandler,
+  Response as ExpressResponseType
+} from "express";
 
 type FetchHandler = (request: Request) => Promise<Response> | Response;
 
-export interface ExpressRequest {
-  readonly body?: unknown;
-  readonly headers: IncomingHttpHeaders;
-  readonly method?: string | undefined;
-  readonly originalUrl?: string | undefined;
-  readonly protocol?: string | undefined;
-  readonly url?: string | undefined;
-}
-
-export interface ExpressResponse {
-  status(code: number): this;
-  set(field: string, value: readonly string[] | string): this;
-  send(body?: unknown): this;
-}
-
-export type ExpressNextFunction = (error?: unknown) => void;
-
-export type ExpressHandler = (
-  request: ExpressRequest,
-  response: ExpressResponse,
-  next: ExpressNextFunction
-) => void;
+export type ExpressRequest = ExpressRequestType;
+export type ExpressResponse = ExpressResponseType;
+export type ExpressNextFunction = ExpressNextFunctionType;
+export type ExpressHandler = RequestHandler;
 
 export function createExpressHandler(fetchHandler: FetchHandler): ExpressHandler {
   return (expressRequest, expressResponse, next) => {
@@ -61,7 +48,7 @@ async function requestFromExpress(expressRequest: ExpressRequest): Promise<Reque
   return new Request(urlFromExpress(expressRequest, headers), init);
 }
 
-function headersFromExpress(expressHeaders: IncomingHttpHeaders): Headers {
+function headersFromExpress(expressHeaders: ExpressRequest["headers"]): Headers {
   const headers = new Headers();
 
   for (const [name, value] of Object.entries(expressHeaders)) {
@@ -173,7 +160,7 @@ async function writeExpressResponse(
   });
 
   if (setCookie.length > 0) {
-    expressResponse.set("set-cookie", setCookie);
+    expressResponse.set("set-cookie", [...setCookie]);
   }
 
   if (response.body === null) {

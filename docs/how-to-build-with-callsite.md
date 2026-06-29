@@ -277,6 +277,23 @@ Mount the middleware at the same base path used by the fetch handler, which is
 server startup, or error handling. It only translates Express requests and
 responses into the same web-standard runtime path.
 
+AWS Lambda functions use the same fetch handler through the API Gateway v2 /
+Lambda Function URL adapter:
+
+```ts
+import { createLambdaHandler } from "@callsitehq/runtime/aws-lambda";
+
+export const handler = createLambdaHandler(createOrdersFetchHandler());
+```
+
+The Lambda adapter intentionally supports API Gateway HTTP API v2 and Lambda
+Function URL payloads first. It does not normalize API Gateway v1, ALB events,
+custom authorizer shapes, deployment config, or streaming responses.
+
+For custom domains with API mappings, configure the fetch handler `basePath` to
+match the Lambda event route path. API Gateway v2 `rawPath` does not include the
+public custom-domain mapping prefix.
+
 ## 7. Test The Contract
 
 A useful test suite covers both halves:

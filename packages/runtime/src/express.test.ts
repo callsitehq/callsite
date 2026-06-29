@@ -187,7 +187,7 @@ interface CapturedExpressResponse {
 
 function callExpressHandler(
   handler: ExpressHandler,
-  request: ExpressRequest
+  request: Partial<ExpressRequest> & Pick<ExpressRequest, "headers">
 ): Promise<CapturedExpressResponse> {
   const chunks: Buffer[] = [];
   const headers = new Map<string, readonly string[] | string>();
@@ -221,9 +221,9 @@ function callExpressHandler(
         status = code;
         return this;
       }
-    } satisfies ExpressResponse;
+    } as unknown as ExpressResponse;
 
-    handler(request, response, (nextError?: unknown) => {
+    handler(request as ExpressRequest, response, (nextError?: unknown) => {
       error = nextError;
       resolve({
         body: Buffer.concat(chunks).toString("utf8"),
