@@ -46,8 +46,12 @@ export function emitMcpJson(ir: IR, options: EmitMcpJsonOptions = {}): string {
   return stringify({
     name: options.name ?? "callsite",
     version: options.version ?? "0.0.0",
-    tools: ir.capabilities.map(capabilityToMcpTool)
+    tools: mcpToolsFromIR(ir)
   });
+}
+
+export function mcpToolsFromIR(ir: IR): readonly JsonObject[] {
+  return ir.capabilities.map(capabilityToMcpTool);
 }
 
 export function emitOpenApi(ir: IR, options: EmitOpenApiOptions = {}): string {

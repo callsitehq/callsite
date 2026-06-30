@@ -11,6 +11,7 @@ export default defineConfig({
       ).pathname,
       "@callsitehq/runtime/express": new URL("./packages/runtime/src/express.ts", import.meta.url)
         .pathname,
+      "@callsitehq/runtime/mcp": new URL("./packages/runtime/src/mcp.ts", import.meta.url).pathname,
       "@callsitehq/runtime/node": new URL("./packages/runtime/src/node.ts", import.meta.url)
         .pathname,
       "@callsitehq/runtime": new URL("./packages/runtime/src/index.ts", import.meta.url).pathname,

@@ -9,6 +9,7 @@
       "@callsitehq/runtime": ["./packages/runtime/src/index.ts"],
       "@callsitehq/runtime/aws-lambda": ["./packages/runtime/src/aws-lambda.ts"],
       "@callsitehq/runtime/express": ["./packages/runtime/src/express.ts"],
+      "@callsitehq/runtime/mcp": ["./packages/runtime/src/mcp.ts"],
       "@callsitehq/runtime/node": ["./packages/runtime/src/node.ts"],
       "@callsitehq/zod": ["./packages/zod/src/index.ts"],
       "@callsitehq/cli": ["./packages/cli/src/index.ts"]

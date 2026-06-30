@@ -294,6 +294,41 @@ For custom domains with API mappings, configure the fetch handler `basePath` to
 match the Lambda event route path. API Gateway v2 `rawPath` does not include the
 public custom-domain mapping prefix.
 
+MCP servers use the MCP TypeScript SDK for protocol and transport handling.
+Callsite registers capabilities as SDK tools:
+
+```ts
+import { toJsonSchema } from "@callsitehq/zod";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { registerCallsiteTools } from "@callsitehq/runtime/mcp";
+
+import { capabilities } from "./app.js";
+
+const server = new McpServer({ name: "orders", version: "0.1.0" });
+
+registerCallsiteTools(server, capabilities, {
+  toJsonSchema,
+  context(extra) {
+    return {
+      subject: extra.authInfo?.clientId,
+      log(event, data) {
+        console.log(JSON.stringify({ event, data }));
+      }
+    };
+  }
+});
+
+await server.connect(new StdioServerTransport());
+```
+
+Use whichever SDK transport fits your host, such as stdio or Streamable HTTP.
+`tools/list` is rendered from the same IR that produces `mcp.json`;
+`tools/call` executes the same capability `run` functions. You can register
+host-owned SDK tools on the same server before or after Callsite tools.
+Callsite still does not own auth, local development, protocol negotiation,
+sessions, or deployment.
+
 ## 7. Test The Contract
 
 A useful test suite covers both halves:

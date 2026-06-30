@@ -6,7 +6,8 @@ import {
   emitChatGptAppConfig,
   emitClaudeConnectorConfig,
   emitMcpJson,
-  emitOpenApi
+  emitOpenApi,
+  mcpToolsFromIR
 } from "./index.js";
 
 const inputSchema = {
@@ -161,6 +162,10 @@ describe("emitMcpJson", () => {
       name: "billing",
       version: "1.2.3"
     });
+  });
+
+  it("exports the MCP tool mapping used by runtime discovery", () => {
+    expect(mcpToolsFromIR(ir)).toEqual(JSON.parse(emitMcpJson(ir)).tools);
   });
 
   it("applies MCP overrides without replacing canonical tool fields", () => {
