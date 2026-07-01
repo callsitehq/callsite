@@ -1,60 +1,159 @@
-# Callsite — Product Design & Architecture
+# Callsite - Product Design & Architecture
 
-_Define your surface once in TypeScript; generate every agent-facing artifact. No hosted control plane._
+_Define capabilities once in TypeScript; render static agent artifacts and host
+runtime surfaces from the same source of truth._
 
-> **Name & identifiers.** Product: **Callsite** — a capability is exactly a callsite an agent reaches.
-> npm scope `@callsitehq` (the bare `@callsite` scope collides with an existing npm account; `hq` lives only on the namespace and never appears in the CLI or product name). CLI binary `callsite` (e.g. `callsite build`). Packages: `@callsitehq/core`, `@callsitehq/emit`, `@callsitehq/runtime`, `@callsitehq/cli`. Domain `callsitehq.com`. GitHub org `callsitehq` (rename the current `surface` repo).
+> **Name & identifiers.** Product: **Callsite**. npm scope:
+> `@callsitehq`. CLI binary: `callsite`. Public packages:
+> `@callsitehq/core`, `@callsitehq/emit`, `@callsitehq/runtime`,
+> `@callsitehq/cli`, and `@callsitehq/zod`.
 
 ---
 
 ## Product Design
 
-You define a product's capabilities once, in TypeScript, as a set of intent-level tools — an `id`, a rich natural-language `intent`, typed `input`/`output` schemas, and a `run` handler. From that single source of truth, Callsite generates static agent-facing artifacts: `mcp.json`, an OpenAPI spec, a ChatGPT app config, and a Claude connector config. Host apps import Callsite runtime libraries and compose those capabilities wherever they already run. Callsite hosts nothing, brokers no auth, and operates no runtime — it is a compiler and a set of libraries you ship on npm.
+You define a product's capabilities once, in TypeScript, as intent-level tools:
+an `id`, a rich natural-language `intent`, typed `input` and `output` schemas,
+optional declared errors, examples, surface escape hatches, and a `run` handler.
+From that single source of truth, Callsite can render static artifacts and power
+runtime surfaces:
 
-The value is not the file conversion; it is the layer above it. The source of truth is _intent-shaped_, not transport-shaped, so it carries what OpenAPI cannot — descriptions written for model consumption, destructive-action flags, examples, and per-surface affordances. Authors live entirely above the transport line: they write business logic against typed, pre-validated input and throw one semantic error, never touching JSON-RPC, HTTP status codes, or any surface's wire format. Every moving spec lives below that line, inside a renderer or the runtime engine, where its churn is absorbed without the author's definition ever changing.
+- `mcp.json` for MCP tool discovery
+- OpenAPI for capability-shaped HTTP calls
+- a hosted HTTP runtime for `POST /capabilities/{id}`
+- hosted MCP tools registered on an MCP SDK server
+- future surfaces such as docs, SDKs, ChatGPT app config, and Claude connector
+  config
+
+Callsite does not host a control plane, own auth, own deployment, or replace the
+application server. The host app owns lifecycle, identity, services, database
+clients, queues, feature flags, logging, and local development. Callsite is a set
+of importable libraries plus a CLI for static artifacts.
+
+The value is not file conversion. The value is the layer above each surface. The
+source of truth is intent-shaped, not transport-shaped, so it carries what
+OpenAPI alone cannot: descriptions written for model consumption, destructive
+action flags, semantic error intent, examples, and per-surface affordances.
+Authors live above the transport line: they write business logic against typed,
+pre-validated input and throw one semantic `CapabilityError`, never formatting
+JSON-RPC, choosing HTTP status codes, or forking logic per channel. Surface churn
+lives below the line, inside renderers and runtime adapters.
 
 ---
 
 ## High-Level Architecture
 
-The system is a pipeline: TypeScript capability definitions are read into a single intent-shaped intermediate representation (the IR), and every generated output is a static renderer over that IR. The author's definition has no knowledge of any surface; surface-specific knowledge lives in exactly one renderer each, so adding a fifth surface means adding a renderer, not reopening the capability API. Runtime execution is an importable library exposing a single web-standard `Request → Response` handler (`fetchHandler`); all vendor conveniences are thin shims over it. The complex decode/validate/dispatch machinery is pulled down into a versioned runtime dependency that the host app composes inside its own entrypoint.
+The system has two paths over the same capability definitions:
+
+1. **Static path:** capabilities -> intent-shaped IR -> pure emitters such as
+   `mcp.json` and OpenAPI.
+2. **Runtime path:** capabilities -> validation and dispatch -> the author's
+   `run` function -> protocol-shaped response.
+
+The author's definition has no knowledge of any surface. Surface-specific
+knowledge lives in emitters and runtime adapters, so adding another surface
+means adding a renderer or adapter, not reopening every capability.
+
+The runtime path is importable and host-composed. The core HTTP runtime is a
+web-standard `Request -> Response` handler. Node, Express, and AWS Lambda are
+thin adapters over that handler. MCP is different: Callsite registers tools on a
+host-owned MCP SDK server and routes `tools/call` through the same validation
+and dispatch engine. The SDK owns MCP protocol handling and transports.
 
 ### Design in full
 
-**The seam — intent above, transport below.** A capability is a TypeScript object whose `run` function is a pure, runtime-unaware handler. Above `run`: intent and business logic. Below it: JSON-RPC for MCP, HTTP for the OpenAPI surface, and whatever each other surface requires. The same `run` serves every surface; business logic is never forked per channel. This boundary is the load-bearing design decision — `run` is not a thin pass-through to transport, it is the layer at which transport stops existing.
+**The seam: intent above, transport below.** A capability is a TypeScript object
+whose `run` function is runtime-unaware. Above `run`: intent, schemas, semantic
+errors, and business logic. Below it: JSON-RPC for MCP, HTTP for the OpenAPI
+surface, Lambda event shapes, Express requests, and future transport details.
+The same `run` serves every surface; business logic is never forked per channel.
+This boundary is the load-bearing design decision.
 
-**Host-owned composition.** Callsite does not own the application process. The host app owns lifecycle, auth, identity, credentials, database clients, queues, logging, deployment, and local development. Callsite provides declarative artifacts, runtime functions, and thin adapters that the host imports and composes inside its own entrypoints. Generated/runtime code should expose functions and factories; it should not make the CLI into an application host or require authors to move their composition root into Callsite config.
+**Host-owned composition.** Callsite does not own the application process. The
+host app owns lifecycle, auth, identity, credentials, database clients, queues,
+logging, deployment, local development, and framework choice. Callsite provides
+declarative artifacts, runtime functions, and thin adapters that the host imports
+inside its own entrypoints. The CLI must not become an application host. Generated
+artifacts must stay declarative. Runtime code should be imported as libraries and
+composed by the app.
 
-**Validation defines errors out of existence.** Input is parsed against the schema at the boundary, before any business code runs. By the time `run` executes, input is fully typed and valid; the author cannot write a handler that receives malformed input, and writes zero validation branches. Invalid requests are rejected at the boundary with protocol-correct errors (a JSON-RPC error for MCP, an HTTP 4xx for the OpenAPI surface). Symmetrically, the author throws one semantic `CapabilityError`, and each renderer maps it to that surface's native error shape.
+**Dependencies close over capabilities; request facts flow through context.**
+Long-lived services belong in the app's composition root and are closed over by
+capability factories. Request-scoped facts such as subject, logger, trace data,
+or tenant identity flow through `CapabilityContext`. This keeps the context
+small and prevents Callsite from becoming a service locator.
 
-**One IR, many renderers.** Definitions compile to an internal representation that is intent-shaped, never OpenAPI-shaped. OpenAPI is one _importer into_ the IR (the bootstrap path: point at an existing spec, get a rough capability graph) and one _renderer out of_ it — never the center. Each static artifact is a pure renderer over the IR.
+**Validation defines malformed-input errors out of business code.** Input is
+parsed against the schema at the boundary, before any business code runs. By the
+time `run` executes, input is typed and valid; the author writes no input
+validation branches there. Invalid requests are rejected at the boundary with
+surface-appropriate errors. Symmetrically, the author throws one semantic
+`CapabilityError`, and each runtime adapter maps it to that surface's native
+shape.
 
-**The runtime artifact is a deep module with a one-symbol interface.** What you import hides protocol decode, routing, validation, dispatch, error normalization, and encode behind a single `fetchHandler`. Workers, Bun, Deno, and Node consume it directly; Express and `node:http` are four-line shims, not separate generators. One deep thing, many shallow conveniences.
+**One IR, many renderers.** Definitions compile to an internal representation
+that is intent-shaped, never OpenAPI-shaped. Each static artifact is a pure
+renderer over the IR. OpenAPI is a renderer out of the IR, not the center of the
+system.
 
-**Generated artifacts stay declarative; cleverness lives in the runtime library.** Synth emits static, inspectable artifacts. Runtime complexity is pulled downward into `@callsitehq/runtime`, which the host app imports directly, so security fixes ship as version bumps instead of generated tree rewrites.
+**OpenAPI is capability-shaped RPC.** Each capability renders as a JSON `POST`
+operation under `/capabilities/{id}`. This is deliberate. Callsite capabilities
+are actions selected by agents, not a REST resource model. Resource modeling can
+still exist in the host app; it is not the abstraction Callsite exposes.
 
-**Module boundaries — three packages, no I/O bleed.**
+**MCP has two outputs with different jobs.** `mcp.json` is a static discovery
+artifact emitted from IR. Live MCP execution is runtime integration:
+`registerCallsiteTools(server, capabilities, options)` registers tools on a
+host-owned MCP SDK server. The host chooses stdio, Streamable HTTP, auth, and any
+additional native SDK tools.
 
-| Package   | Responsibility                                                               | Purity                       |
-| --------- | ---------------------------------------------------------------------------- | ---------------------------- |
-| `core`    | `capability()`, IR types, the validation seam (Standard Schema; Zod default) | Pure — no fs, no network     |
-| `emit`    | IR → static artifacts (`mcp.json`, OpenAPI, ChatGPT, Claude connector)       | Pure functions, IR → strings |
-| `runtime` | Capabilities → the `Request → Response` engine behind `fetchHandler`         | The one deep module          |
+**Standard Schema is the validation seam; JSON Schema is injected.** Core
+depends on Standard Schema for validation and TypeScript inference. JSON Schema
+emission is not part of Standard Schema, so it is injected through
+`toJsonSchema`. `@callsitehq/zod` is the first adapter for that seam; core does
+not import Zod.
 
-**Synth** is then a pure function from config to a folder: read definitions → build IR → hand the IR to `emit` for static artifacts.
+**Generated artifacts stay declarative; cleverness lives in runtime libraries.**
+The CLI emits static, inspectable artifacts. Runtime complexity is pulled down
+into `@callsitehq/runtime`, which the host app imports directly, so fixes ship as
+package version bumps instead of generated tree rewrites.
 
-**Common case tiny, escape hatches off the path.** `id`, `intent`, `input`, `output`, `run` is a complete capability in ~12 lines. Optional fields — `overrides.<surface>` for channel-specific affordances, raw `passthrough` for "emit exactly this," custom auth mapping — don't appear unless reached for. No complexity tax for unused features.
+**Common case tiny, escape hatches off the path.** `id`, `intent`, `input`,
+`output`, and `run` are enough for a capability. Optional fields such as
+`errors`, `examples`, `overrides.<surface>`, and raw `passthrough` do not appear
+unless the author reaches for them.
 
----
+## Package Boundaries
 
-## Appendix
+| Package               | Responsibility                                                                           | Boundary                                                            |
+| --------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `@callsitehq/core`    | `capability()`, IR types, Standard Schema validation seam, semantic errors               | Pure; no fs, network, runtime adapter, or schema-library dependency |
+| `@callsitehq/emit`    | IR -> static artifacts such as `mcp.json` and OpenAPI                                    | Pure functions from IR to strings/objects                           |
+| `@callsitehq/runtime` | Validation, dispatch, error mapping, HTTP adapters, Lambda adapter, MCP SDK registration | Importable runtime libraries; no process ownership                  |
+| `@callsitehq/cli`     | `callsite build` for static artifacts                                                    | Loads config and writes files; does not host runtime                |
+| `@callsitehq/zod`     | Zod 4 JSON Schema adapter and config helper                                              | Optional adapter package; keeps Zod out of core                     |
 
-The following are referenced above and warrant their own treatment when the build starts:
+## Current Built Slice
 
-- **Capability IR & `capability()` signature.** The exact schema authors write and everything renders off. Getting this abstraction boundary right is load-bearing; it is the one piece worth specifying before any code. _(To be drafted.)_
-- **Validation seam (Standard Schema).** How `core` depends on what Zod _produces_ (JSON Schema + a validate function) rather than on Zod itself, enabling Valibot / ArkType / hand-rolled validators as drop-in alternatives.
-- **Handler binding model.** The host imports its Callsite config and runtime adapters into the environment that already holds backend access and identity, so protocol wiring stays in runtime libraries while business logic and credentials stay with the author. Worth confirming the `ctx` identity pass-through contract.
-- **Error taxonomy.** The semantic `CapabilityError` codes and the per-surface mapping table (e.g. `not_found` → JSON-RPC error vs. HTTP 404).
-- **Runtime shims.** The four-line `expressHandler` / `node:http` adapters over `fetchHandler`, kept deliberately shallow.
-- **OpenAPI importer.** The bootstrap path that ingests an existing spec into the IR — the low-friction adoption wedge — and its inherent lossiness (transport-shaped input into an intent-shaped model).
-- **Deferred: hosting/runtime operation.** Live MCP server operation, auth brokering, metering, and observability are explicitly out of this scope and form the eventual paid layer.
+The current implementation proves the vertical slice:
+
+- author capabilities with `@callsitehq/core`
+- lower Zod-backed capabilities through `@callsitehq/zod`
+- emit `mcp.json` and OpenAPI from the same IR
+- build artifacts with `callsite build`
+- execute capabilities through `@callsitehq/runtime`
+- host HTTP via fetch, Node, Express, or AWS Lambda adapters
+- register live MCP tools on a host-owned MCP SDK server
+- demonstrate the full loop in `examples/orders`
+
+## Deferred Work
+
+The following remain future work or explicit non-goals for the current slice:
+
+- ChatGPT app config, Claude connector config, docs generation, and SDK
+  generation.
+- OpenAPI importer as an adoption wedge from existing APIs into a rough
+  capability graph.
+- Additional schema adapters beyond Zod.
+- Hosted control plane concerns such as auth brokering, metering, remote
+  observability, and managed deployment.
