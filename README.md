@@ -69,12 +69,13 @@ from MCP, HTTP, Express, Lambda, or a test.
 
 ## Packages
 
-- `@callsitehq/core`: authoring API, IR types, and the validation boundary.
-- `@callsitehq/emit`: pure renderers from IR to `mcp.json` and OpenAPI.
-- `@callsitehq/runtime`: validation, dispatch, HTTP adapters, and MCP SDK tool
-  registration.
-- `@callsitehq/zod`: Zod adapter for capability config files.
-- `@callsitehq/cli`: `callsite` command for building generated outputs.
+| Package               | npm                                                        | Description                                                         |
+| --------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------- |
+| `@callsitehq/core`    | [`npm`](https://www.npmjs.com/package/@callsitehq/core)    | Authoring API, IR types, and the validation boundary.               |
+| `@callsitehq/emit`    | [`npm`](https://www.npmjs.com/package/@callsitehq/emit)    | Pure renderers from IR to `mcp.json` and OpenAPI.                   |
+| `@callsitehq/runtime` | [`npm`](https://www.npmjs.com/package/@callsitehq/runtime) | Validation, dispatch, HTTP adapters, and MCP SDK tool registration. |
+| `@callsitehq/zod`     | [`npm`](https://www.npmjs.com/package/@callsitehq/zod)     | Zod adapter for capability config files.                            |
+| `@callsitehq/cli`     | [`npm`](https://www.npmjs.com/package/@callsitehq/cli)     | `callsite` command for building generated outputs.                  |
 
 ## CLI
 
