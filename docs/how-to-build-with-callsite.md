@@ -204,15 +204,17 @@ It does not generate or run your server.
 
 ## 6. Host The Runtime In Your Server
 
-Your server imports the runtime and supplies request context. The Node example
-uses the web-standard fetch handler plus the `node:http` adapter:
+Your server imports the runtime and supplies request context. The orders example
+keeps the reusable HTTP handler separate from the Node host:
 
 ```ts
+// src/http.ts
 export function createOrdersFetchHandler(options: OrdersFetchHandlerOptions = {}) {
   const { app, ...runtimeOptions } = options;
   return createFetchHandler(createOrdersApp(app).capabilities, runtimeOptions);
 }
 
+// src/node-server.ts
 export function serveOrders() {
   return createServer(
     createNodeHandler(
@@ -295,12 +297,12 @@ match the Lambda event route path. API Gateway v2 `rawPath` does not include the
 public custom-domain mapping prefix.
 
 MCP servers use the MCP TypeScript SDK for protocol and transport handling.
-Callsite registers capabilities as SDK tools:
+The orders example keeps Callsite tool registration separate from the transport:
 
 ```ts
+// src/mcp.ts
 import { toJsonSchema } from "@callsitehq/zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { registerCallsiteTools } from "@callsitehq/runtime/mcp";
 
 import { capabilities } from "./app.js";
@@ -318,11 +320,23 @@ registerCallsiteTools(server, capabilities, {
     };
   }
 });
+```
 
+Then host that MCP server over whichever SDK transport fits your app:
+
+```ts
+// src/mcp-stdio.ts
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+
+import { createOrdersMcpServer } from "./mcp.js";
+
+const server = createOrdersMcpServer();
 await server.connect(new StdioServerTransport());
 ```
 
-Use whichever SDK transport fits your host, such as stdio or Streamable HTTP.
+`src/mcp-express.ts` creates the app-owned capabilities once, then creates a
+fresh MCP server and Streamable HTTP transport per stateless `/mcp` request
+using that same capability graph.
 `tools/list` is rendered from the same IR that produces `mcp.json`;
 `tools/call` executes the same capability `run` functions. You can register
 host-owned SDK tools on the same server before or after Callsite tools.

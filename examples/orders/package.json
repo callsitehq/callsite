@@ -4,7 +4,10 @@
   "type": "module",
   "scripts": {
     "build": "callsite build --config callsite.config.ts --out generated",
-    "dev": "tsx src/server.ts",
+    "dev": "tsx src/node-server.ts",
+    "dev:http": "tsx src/node-server.ts",
+    "dev:mcp:express": "tsx src/mcp-express.ts",
+    "dev:mcp:stdio": "tsx src/mcp-stdio.ts",
     "test": "vitest run --root ../.. examples/orders/src/orders.test.ts",
     "typecheck": "tsc -p ../../tsconfig.check.json --noEmit"
   },
@@ -13,10 +16,13 @@
     "@callsitehq/core": "workspace:*",
     "@callsitehq/runtime": "workspace:*",
     "@callsitehq/zod": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "express": "5.2.1",
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "@callsitehq/emit": "workspace:*",
+    "@types/express": "5.0.6",
     "tsx": "^4.22.4"
   }
 }

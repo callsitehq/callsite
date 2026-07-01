@@ -7,9 +7,13 @@ import { describe, expect, it } from "vitest";
 
 import { toIR } from "@callsitehq/core";
 import { emitMcpJson, emitOpenApi } from "@callsitehq/emit";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 
 import config from "../callsite.config.js";
-import { createOrdersFetchHandler } from "./server.js";
+import { createOrdersApp } from "./app.js";
+import { createOrdersFetchHandler } from "./http.js";
+import { createOrdersMcpServer } from "./mcp.js";
 import type { OrderEvent } from "./services.js";
 
 const ir = toIR(config.capabilities, config.toJsonSchema);
@@ -87,6 +91,103 @@ describe("orders example", () => {
           refundedCents: 0
         }
       ]
+    });
+  });
+
+  it("serves the same capabilities through MCP runtime", async () => {
+    const server = createOrdersMcpServer();
+    const client = new Client({ name: "orders-test", version: "0.0.0" });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+    try {
+      await server.connect(serverTransport);
+      await client.connect(clientTransport);
+
+      await expect(client.listTools()).resolves.toMatchObject({
+        tools: [
+          {
+            name: "orders.find"
+          },
+          {
+            name: "orders.refund"
+          }
+        ]
+      });
+      await expect(
+        client.callTool({
+          name: "orders.find",
+          arguments: {
+            email: "ada@example.com",
+            status: "paid"
+          }
+        })
+      ).resolves.toMatchObject({
+        structuredContent: {
+          orders: [
+            {
+              orderId: "ord_1001",
+              status: "paid",
+              totalCents: 12_500,
+              refundedCents: 0
+            }
+          ]
+        },
+        isError: false
+      });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("shares app-owned state across short-lived MCP server instances", async () => {
+    const ordersApp = createOrdersApp();
+
+    await withOrdersMcpClient(
+      createOrdersMcpServer(ordersApp.capabilities, {
+        context: { subject: "support_123" }
+      }),
+      async (client) => {
+        await expect(
+          client.callTool({
+            name: "orders.refund",
+            arguments: {
+              orderId: "ord_1001"
+            }
+          })
+        ).resolves.toMatchObject({
+          structuredContent: {
+            refundId: "re_ord_1001",
+            status: "refunded",
+            refundedCents: 12_500
+          },
+          isError: false
+        });
+      }
+    );
+
+    await withOrdersMcpClient(createOrdersMcpServer(ordersApp.capabilities), async (client) => {
+      await expect(
+        client.callTool({
+          name: "orders.find",
+          arguments: {
+            email: "ada@example.com",
+            status: "refunded"
+          }
+        })
+      ).resolves.toMatchObject({
+        structuredContent: {
+          orders: [
+            {
+              orderId: "ord_1001",
+              status: "refunded",
+              totalCents: 12_500,
+              refundedCents: 12_500
+            }
+          ]
+        },
+        isError: false
+      });
     });
   });
 
@@ -251,6 +352,23 @@ describe("orders example", () => {
     });
   });
 });
+
+async function withOrdersMcpClient(
+  server: ReturnType<typeof createOrdersMcpServer>,
+  run: (client: Client) => Promise<void>
+): Promise<void> {
+  const client = new Client({ name: "orders-test", version: "0.0.0" });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+  try {
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+    await run(client);
+  } finally {
+    await client.close();
+    await server.close();
+  }
+}
 
 async function writeExampleArtifacts(outDir: URL): Promise<void> {
   await mkdir(outDir, { recursive: true });

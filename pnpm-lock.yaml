@@ -50,6 +50,12 @@ importers:
       '@callsitehq/zod':
         specifier: workspace:*
         version: link:../../packages/zod
+      '@modelcontextprotocol/sdk':
+        specifier: 1.29.0
+        version: 1.29.0(zod@4.4.3)
+      express:
+        specifier: 5.2.1
+        version: 5.2.1
       zod:
         specifier: ^4.0.0
         version: 4.4.3
@@ -57,6 +63,9 @@ importers:
       '@callsitehq/emit':
         specifier: workspace:*
         version: link:../../packages/emit
+      '@types/express':
+        specifier: 5.0.6
+        version: 5.0.6
       tsx:
         specifier: ^4.22.4
         version: 4.22.4

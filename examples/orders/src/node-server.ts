@@ -2,27 +2,13 @@ import { realpathSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { fileURLToPath } from "node:url";
 
-import {
-  createFetchHandler,
-  type FetchHandler,
-  type FetchHandlerOptions
-} from "@callsitehq/runtime";
 import { createNodeHandler, type NodeHandler } from "@callsitehq/runtime/node";
 
-import { createOrdersApp, type OrdersAppOptions } from "./app.js";
-
-export interface OrdersFetchHandlerOptions extends FetchHandlerOptions {
-  readonly app?: OrdersAppOptions | undefined;
-}
+import { createOrdersFetchHandler, type OrdersFetchHandlerOptions } from "./http.js";
 
 export interface OrdersServerOptions {
   readonly host?: string;
   readonly port?: number;
-}
-
-export function createOrdersFetchHandler(options: OrdersFetchHandlerOptions = {}): FetchHandler {
-  const { app, ...runtimeOptions } = options;
-  return createFetchHandler(createOrdersApp(app).capabilities, runtimeOptions);
 }
 
 export function createOrdersNodeHandler(options: OrdersFetchHandlerOptions = {}): NodeHandler {
@@ -63,7 +49,7 @@ export function serveOrders(options: OrdersServerOptions = {}): Server {
     const address = server.address();
     const boundPort = typeof address === "object" && address !== null ? address.port : port;
 
-    console.log(`Orders example listening at http://${hostForUrl(host)}:${boundPort}`);
+    console.log(`Orders HTTP example listening at http://${hostForUrl(host)}:${boundPort}`);
   });
 
   return server;
