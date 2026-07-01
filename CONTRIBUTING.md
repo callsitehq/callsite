@@ -30,6 +30,8 @@ pnpm format:check
 ## Publishing
 
 Publishing is managed with Changesets. You need npm publish access to the `callsitehq` org.
+The public `@callsitehq/*` packages are configured as one fixed-version group,
+so release them together.
 
 Confirm npm auth and org access:
 

@@ -2,6 +2,24 @@
   "name": "@callsitehq/zod",
   "version": "0.1.0",
   "description": "Zod adapter for Callsite capability configs.",
+  "keywords": [
+    "agents",
+    "capabilities",
+    "mcp",
+    "openapi",
+    "typescript",
+    "zod"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/callsitehq/callsite/tree/main/packages/zod#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/callsitehq/callsite.git",
+    "directory": "packages/zod"
+  },
+  "bugs": {
+    "url": "https://github.com/callsitehq/callsite/issues"
+  },
   "type": "module",
   "exports": {
     ".": {
@@ -12,6 +30,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup",
     "clean": "rm -rf dist *.tsbuildinfo",

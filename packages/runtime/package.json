@@ -2,6 +2,24 @@
   "name": "@callsitehq/runtime",
   "version": "0.1.0",
   "description": "Runtime dispatch engine for Callsite capabilities.",
+  "keywords": [
+    "agents",
+    "capabilities",
+    "mcp",
+    "openapi",
+    "runtime",
+    "typescript"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/callsitehq/callsite/tree/main/packages/runtime#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/callsitehq/callsite.git",
+    "directory": "packages/runtime"
+  },
+  "bugs": {
+    "url": "https://github.com/callsitehq/callsite/issues"
+  },
   "type": "module",
   "exports": {
     ".": {
@@ -28,6 +46,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup",
     "clean": "rm -rf dist *.tsbuildinfo",

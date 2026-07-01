@@ -4,8 +4,16 @@
   "baseBranch": "main",
   "changelog": "@changesets/cli/changelog",
   "commit": false,
-  "fixed": [],
+  "fixed": [
+    [
+      "@callsitehq/core",
+      "@callsitehq/emit",
+      "@callsitehq/runtime",
+      "@callsitehq/cli",
+      "@callsitehq/zod"
+    ]
+  ],
   "ignore": [],
-  "linked": [["@callsitehq/core", "@callsitehq/emit", "@callsitehq/runtime", "@callsitehq/cli"]],
+  "linked": [],
   "updateInternalDependencies": "patch"
 }

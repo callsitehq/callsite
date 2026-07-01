@@ -2,6 +2,24 @@
   "name": "@callsitehq/cli",
   "version": "0.1.0",
   "description": "Command-line tools for building Callsite generated artifacts.",
+  "keywords": [
+    "agents",
+    "capabilities",
+    "cli",
+    "mcp",
+    "openapi",
+    "typescript"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/callsitehq/callsite/tree/main/packages/cli#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/callsitehq/callsite.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/callsitehq/callsite/issues"
+  },
   "type": "module",
   "bin": {
     "callsite": "./dist/index.js"
@@ -15,6 +33,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup",
     "clean": "rm -rf dist *.tsbuildinfo",
